@@ -2,37 +2,76 @@ import { prisma } from "../../../database.js";
 
 export const create = async (req, res, next) => {
   const { body = {}, decoded = {} } = req;
-  const { items = [] } = body;
+  const { id: userId } = decoded;
+  const { items = [], total, state, comments } = body;
 
   try {
-    // hago uns transaccion para crear el order y el orderItem y actualizo el stock
-    const result = await prisma.$transaction([
-      prisma.order.create({
-        data: {
-          ...body,
-        },
-      }),
-      ...items.map((item) =>
-        prisma.orderItem.create({
-          data: {
-            ...item,
-          },
-        })
-      ),
-
-      ...items.map((item) =>
-        prisma.stock.update({
+    await Promise.all(
+      items.map(async (item) => {
+        const stock = await prisma.stock.findFirst({
           where: {
-            productId: item.productId,
+            modelId: item.modelId,
+            size: item.size,
           },
-          data: {
-            quantity: {
-              decrement: item.quantity,
+        });
+
+        if (stock === null) {
+          throw new Error("Stock no encontrado");
+        }
+
+        if (stock.quantity < item.quantity) {
+          throw new Error("No hay suficiente stock");
+        }
+      })
+    );
+
+    const result = await prisma.$transaction(async (transaction) => {
+      const order = await transaction.order.create({
+        data: {
+          total: total,
+          state: state,
+          comments: comments,
+          userId,
+        },
+      });
+
+      const itemsWithOrderId = items.map((item) => ({
+        ...item,
+        orderId: order.id,
+      }));
+
+      await transaction.orderItem.createMany({
+        data: itemsWithOrderId,
+      });
+
+      await Promise.all(
+        items.map(async (item) => {
+          const stock = await transaction.stock.findFirst({
+            where: {
+              modelId: item.modelId,
+              size: item.size,
             },
-          },
+          });
+
+          if (stock === null) {
+            throw new Error("Stock no encontrado");
+          }
+
+          await transaction.stock.update({
+            where: {
+              id: stock.id,
+            },
+            data: {
+              quantity: {
+                decrement: item.quantity,
+              },
+            },
+          });
         })
-      ),
-    ]);
+      );
+
+      return order;
+    });
 
     res.status(201);
     res.json({
