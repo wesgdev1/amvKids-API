@@ -20,6 +20,9 @@ export const create = async (req, res, next) => {
 export const getAll = async (req, res, next) => {
   try {
     const result = await prisma.product.findMany({
+      include: {
+        models: true,
+      },
       orderBy: {
         createdAt: "desc",
       },
@@ -40,6 +43,14 @@ export const id = async (req, res, next) => {
     const result = await prisma.product.findUnique({
       where: {
         id: params.id,
+      },
+      include: {
+        models: {
+          include: {
+            stocks: true,
+            images: true,
+          },
+        },
       },
     });
 

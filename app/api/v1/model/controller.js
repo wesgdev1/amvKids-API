@@ -1,11 +1,32 @@
 import { prisma } from "../../../database.js";
+import { uploadFiles } from "../../../uploadPhotos/uploads.js";
+import fs from "fs";
 
 export const create = async (req, res, next) => {
   const { body = {}, decoded = {} } = req;
+  const newBody = {
+    ...body,
+    price: parseInt(body.price),
+    reference: parseInt(body.reference),
+  };
+
+  const files = req.files;
+
+  console.log(files);
+  console.log(newBody);
 
   try {
+    const promises = files.map((file) => uploadFiles(file.path));
+    const resultados = await Promise.all(promises);
+    const images = [];
+    for (let i = 0; i < resultados.length; i++) {
+      images.push({ url: resultados[i].url });
+    }
+
+    files.forEach((file) => fs.unlinkSync(file.path));
+
     const result = await prisma.model.create({
-      data: { ...body },
+      data: { ...newBody, images: { create: images } },
     });
 
     res.status(201);
@@ -25,6 +46,8 @@ export const getAll = async (req, res, next) => {
       },
       include: {
         stocks: true,
+        images: true,
+        product: true,
       },
     });
     const resultWithTotalStocks = result.map((item) => {
@@ -54,12 +77,25 @@ export const id = async (req, res, next) => {
       where: {
         id: params.id,
       },
+
+      include: {
+        stocks: true,
+        images: true,
+      },
     });
+
+    const resultWithTotalStocks = {
+      ...result,
+      totalStocks: result.stocks.reduce(
+        (acc, stock) => acc + stock.quantity,
+        0
+      ),
+    };
 
     if (result === null) {
       next({ message: "Model not found", status: 404 });
     } else {
-      req.data = result;
+      req.data = resultWithTotalStocks;
 
       next();
     }

@@ -32,17 +32,27 @@ model Product {
 }
 
 model Model {
-  id        String      @id @default(uuid()) @db.Uuid
-  name      String
-  price     Float
-  image     String
-  reference Int
-  createdAt DateTime    @default(now())
-  updatedAt DateTime?   @updatedAt
-  Product   Product?    @relation(fields: [productId], references: [id])
-  productId String?     @db.Uuid
-  stocks    Stock[]
-  OrderItem OrderItem[]
+  id          String      @id @default(uuid()) @db.Uuid
+  name        String
+  price       Int?
+  description String?
+  reference   Int
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime?   @updatedAt
+  product     Product?    @relation(fields: [productId], references: [id])
+  productId   String?     @db.Uuid
+  stocks      Stock[]
+  OrderItem   OrderItem[]
+  images      Image[]
+}
+
+model Image {
+  id        String    @id @default(uuid()) @db.Uuid
+  url       String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+  Model     Model?    @relation(fields: [modelId], references: [id])
+  modelId   String?   @db.Uuid
 }
 
 model Stock {

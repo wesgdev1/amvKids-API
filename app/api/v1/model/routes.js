@@ -4,8 +4,12 @@ import { Router } from "express";
 export const router = Router();
 
 import * as controller from "./controller.js";
+import { uploads } from "../../../uploadPhotos/uploads.js";
 
-router.route("/").get(controller.getAll).post(controller.create);
+router
+  .route("/")
+  .get(controller.getAll)
+  .post(uploads.array("images"), controller.create);
 
 router.param("id", controller.id);
 
