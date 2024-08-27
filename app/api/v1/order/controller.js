@@ -1,5 +1,6 @@
 import { prisma } from "../../../database.js";
 import { uploadFiles, uploadPayments } from "../../../uploadPhotos/uploads.js";
+import { mensajeCliente, transporter } from "../mailer.js";
 
 export const create = async (req, res, next) => {
   const { body = {}, decoded = {} } = req;
@@ -33,6 +34,14 @@ export const create = async (req, res, next) => {
           state: state,
           comments: comments,
           userId,
+        },
+        include: {
+          user: true,
+          orderItems: {
+            include: {
+              model: true,
+            },
+          },
         },
       });
 
@@ -73,6 +82,30 @@ export const create = async (req, res, next) => {
 
       return order;
     });
+
+    if (result) {
+      // Busco la orden
+
+      const orderUpdate = await prisma.order.findUnique({
+        where: {
+          id: result.id,
+        },
+        include: {
+          user: true,
+          orderItems: {
+            include: {
+              model: true,
+            },
+          },
+        },
+      });
+
+      console.log(orderUpdate);
+
+      // Enviar correo
+      const mensaje = mensajeCliente(orderUpdate);
+      await transporter.sendMail(mensaje);
+    }
 
     res.status(201);
     res.json({
@@ -172,7 +205,7 @@ export const update = async (req, res, next) => {
       data: {
         paymentUrl: resultados[0].url,
         updatedAt: new Date().toISOString(),
-        state: "Pagada",
+        state: "Pago Enviado",
       },
     });
 

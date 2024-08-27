@@ -75,7 +75,7 @@ model Order {
   userId      String?     @db.Uuid
   orderItems  OrderItem[]
   total       Int?
-  state       String?     @default("Creada") // Creada, Pagada - en confirmacion, Aprobado, NoAprobado, Entregada, CanceladaAdmin
+  state       String?     @default("Creada") // Creada, Pago Enviado, Pago Confirmado ,Entregada, CanceladaAdmin
   comments    String?
   paymentUrl  String?
 }
