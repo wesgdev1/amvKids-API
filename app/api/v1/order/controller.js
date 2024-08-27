@@ -1,4 +1,5 @@
 import { prisma } from "../../../database.js";
+import { uploadFiles, uploadPayments } from "../../../uploadPhotos/uploads.js";
 
 export const create = async (req, res, next) => {
   const { body = {}, decoded = {} } = req;
@@ -98,6 +99,28 @@ export const getAll = async (req, res, next) => {
   }
 };
 
+export const getMyOrders = async (req, res, next) => {
+  const { decoded = {} } = req;
+  const { id: userId } = decoded;
+
+  try {
+    const result = await prisma.order.findMany({
+      where: {
+        userId,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    res.json({
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const id = async (req, res, next) => {
   const { params = {} } = req;
 
@@ -106,10 +129,18 @@ export const id = async (req, res, next) => {
       where: {
         id: params.id,
       },
+      include: {
+        orderItems: {
+          include: {
+            model: true,
+          },
+        },
+        user: true,
+      },
     });
 
     if (result === null) {
-      next({ message: "Model not found", status: 404 });
+      next({ message: "Order not found", status: 404 });
     } else {
       req.data = result;
 
@@ -127,13 +158,22 @@ export const read = async (req, res, next) => {
 export const update = async (req, res, next) => {
   const { params = {}, body = {} } = req;
   const { id } = params;
+  const files = req.files;
+  console.log(files);
 
   try {
-    const result = await prisma.stock.update({
+    const promises = files.map((file) => uploadPayments(file.path));
+    const resultados = await Promise.all(promises);
+
+    const result = await prisma.order.update({
       where: {
         id,
       },
-      data: { ...body, updatedAt: new Date().toISOString() },
+      data: {
+        paymentUrl: resultados[0].url,
+        updatedAt: new Date().toISOString(),
+        state: "Pagada",
+      },
     });
 
     res.json({ data: result });

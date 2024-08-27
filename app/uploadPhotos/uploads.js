@@ -26,3 +26,19 @@ export const uploadFiles = async (file) => {
     return error;
   }
 };
+
+export const uploadPayments = async (file) => {
+  const photoConfig = {
+    folder: "payments",
+    use_filename: true,
+    unique_filename: false,
+  };
+
+  try {
+    const result = await cloudinary.uploader.upload(file, photoConfig);
+    return result;
+  } catch (error) {
+    console.log(error);
+    return error;
+  }
+};
