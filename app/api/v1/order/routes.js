@@ -16,5 +16,5 @@ router
   .route("/:id")
   .get(auth, controller.read)
   .put(auth, uploads.array("images"), controller.update)
-  .patch(controller.update)
+  .patch(auth, controller.updatePatch)
   .delete(controller.remove);

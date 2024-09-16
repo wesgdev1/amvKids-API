@@ -119,6 +119,9 @@ export const create = async (req, res, next) => {
 export const getAll = async (req, res, next) => {
   try {
     const result = await prisma.order.findMany({
+      include: {
+        user: true,
+      },
       orderBy: {
         createdAt: "desc",
       },
@@ -141,6 +144,7 @@ export const getMyOrders = async (req, res, next) => {
       where: {
         userId,
       },
+
       orderBy: {
         createdAt: "desc",
       },
@@ -215,18 +219,94 @@ export const update = async (req, res, next) => {
   }
 };
 
+export const updatePatch = async (req, res, next) => {
+  const { params = {}, body = {} } = req;
+  const { id } = params;
+  const { state } = body;
+
+  try {
+    const result = await prisma.order.update({
+      where: {
+        id,
+      },
+      data: {
+        state,
+      },
+    });
+
+    res.json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const remove = async (req, res, error) => {
   const { params = {} } = req;
   const { id } = params;
 
+  // Tener en cuenta que se debe devolver el stock
+
   try {
-    await prisma.stock.delete({
+    // busco la orde
+
+    const order = await prisma.order.findUnique({
       where: {
         id,
       },
+      include: {
+        orderItems: {
+          include: {
+            model: true,
+          },
+        },
+      },
     });
-    res.status(204);
-    res.end();
+
+    if (order === null) {
+      throw new Error("Order not found");
+    }
+
+    await prisma.$transaction(async (transaction) => {
+      await transaction.orderItem.deleteMany({
+        where: {
+          orderId: id,
+        },
+      });
+
+      await transaction.order.delete({
+        where: {
+          id,
+        },
+      });
+
+      await Promise.all(
+        order.orderItems.map(async (item) => {
+          const stock = await transaction.stock.findFirst({
+            where: {
+              modelId: item.modelId,
+              size: item.size,
+            },
+          });
+
+          if (stock === null) {
+            throw new Error("Stock not found");
+          }
+
+          await transaction.stock.update({
+            where: {
+              id: stock.id,
+            },
+            data: {
+              quantity: {
+                increment: item.quantity,
+              },
+            },
+          });
+        })
+      );
+    });
+
+    return res.status(200).json({ message: "Order deleted successfully" });
   } catch (error) {
     next(error);
   }
