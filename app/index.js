@@ -1,7 +1,7 @@
 import express from "express";
 import { router as api } from "./api/v1/index.js";
-
 import cors from "cors";
+import "./cronJobs.js";
 
 export const app = express();
 // CORS
