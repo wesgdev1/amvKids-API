@@ -2,13 +2,13 @@ import cron from "node-cron";
 import { prisma } from "./database.js";
 
 // Schedule the task to run at 8 PM every day
-cron.schedule("0 20 * * *", async () => {
+cron.schedule("2 16 * * *", async () => {
   try {
     console.log('Running scheduled task to delete orders with status "creada"');
 
     const orders = await prisma.order.findMany({
       where: {
-        status: "Creada",
+        state: "Creada",
       },
       include: {
         orderItems: {
