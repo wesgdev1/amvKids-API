@@ -12,6 +12,7 @@ datasource db {
 
 model User {
   id           String    @id @default(uuid()) @db.Uuid
+  celular      String?
   email        String    @unique
   tipoUsuario  String?
   password     String
@@ -38,7 +39,8 @@ model Model {
   name        String
   price       Int?
   description String?
-  reference   Int
+  reference   Int? 
+  color       String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime?   @updatedAt
   product     Product?    @relation(fields: [productId], references: [id])

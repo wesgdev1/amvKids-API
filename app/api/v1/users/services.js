@@ -29,3 +29,19 @@ export const loginUser = async (email, password) => {
     throw error;
   }
 };
+
+export const getAllUsers = async () => {
+  try {
+    const users = prisma.user.findMany({
+      // donde el tipo no sea admin
+      where: {
+        tipoUsuario: {
+          not: "Admin",
+        },
+      },
+    });
+    return users;
+  } catch (error) {
+    throw error;
+  }
+};

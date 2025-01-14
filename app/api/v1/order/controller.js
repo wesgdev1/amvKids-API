@@ -311,3 +311,68 @@ export const remove = async (req, res, error) => {
     next(error);
   }
 };
+
+export const updateOrderItem = async (req, res, next) => {
+  // eliminar un item de la orden segun el id del item y devolver las cantidades al stock
+  const { body } = req;
+  const { orderId, itemId } = body;
+
+  try {
+    const order = await prisma.order.findUnique({
+      where: {
+        id: orderId,
+      },
+      include: {
+        orderItems: {
+          include: {
+            model: true,
+          },
+        },
+      },
+    });
+
+    if (order === null) {
+      throw new Error("Order not found");
+    }
+
+    const item = order.orderItems.find((item) => item.id === itemId);
+
+    if (item === undefined) {
+      throw new Error("Item not found");
+    }
+
+    await prisma.$transaction(async (transaction) => {
+      await transaction.orderItem.delete({
+        where: {
+          id: itemId,
+        },
+      });
+
+      const stock = await transaction.stock.findFirst({
+        where: {
+          modelId: item.modelId,
+          size: item.size,
+        },
+      });
+
+      if (stock === null) {
+        throw new Error("Stock not found");
+      }
+
+      await transaction.stock.update({
+        where: {
+          id: stock.id,
+        },
+        data: {
+          quantity: {
+            increment: item.quantity,
+          },
+        },
+      });
+    });
+
+    return res.status(200).json({ message: "Order item deleted successfully" });
+  } catch (error) {
+    next(error);
+  }
+};

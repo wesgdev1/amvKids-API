@@ -1,6 +1,7 @@
+import { prisma } from "../../../database.js";
 import { signToken } from "../auth.js";
 import { encryptPassword, verifyPassword } from "./model.js";
-import { createUser, loginUser } from "./services.js";
+import { createUser, getAllUsers, loginUser } from "./services.js";
 
 export const signup = async (req, res, next) => {
   const { body } = req;
@@ -40,10 +41,42 @@ export const signin = async (req, res, next) => {
   }
 };
 
+export const getAll = async (req, res, next) => {
+  try {
+    const users = await getAllUsers();
+    res.status(200).json({
+      data: users,
+      message: "Users retrieved successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const changePassword = async (req, res, next) => {};
 
-export const id = async (req, res, next, id) => {};
+export const id = async (req, res, next, id) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: {
+        id: Number(id),
+      },
+    });
+    if (!user) {
+      return next({ message: "User not found", status: 404 });
+    }
+    req.user = user;
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
 
-export const read = async (req, res, next) => {};
+export const read = async (req, res, next) => {
+  try {
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const update = async (req, res, next) => {};
