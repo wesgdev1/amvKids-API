@@ -38,6 +38,7 @@ model Model {
   id          String      @id @default(uuid()) @db.Uuid
   name        String
   price       Int?
+  normalPrice Int?
   description String?
   reference   Int? 
   color       String?
