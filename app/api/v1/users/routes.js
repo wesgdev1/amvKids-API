@@ -15,6 +15,7 @@ import { auth } from "../auth.js";
 
 router.route("/signup").post(controller.signup);
 router.route("/signin").post(controller.signin);
+router.route("/create").post(controller.createUsers);
 // router.route("/auth/change-password").put(auth, controller.changePassword);
 router.route("/getAll").get(auth, controller.getAll);
 

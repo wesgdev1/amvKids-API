@@ -1,5 +1,6 @@
 import { prisma } from "../../../database.js";
 import { signToken } from "../auth.js";
+import { mensajeCliente, transporter, welcomeMessage } from "../mailer.js";
 import { encryptPassword, verifyPassword } from "./model.js";
 import { createUser, getAllUsers, loginUser } from "./services.js";
 
@@ -9,6 +10,29 @@ export const signup = async (req, res, next) => {
     const password = await encryptPassword(req.body.password);
 
     const user = await createUser(body, password);
+    res.status(201).json({
+      data: user,
+      message: "User created successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createUsers = async (req, res, next) => {
+  console.log(req.body);
+  const { body } = req;
+
+  const passwordRamdom = Math.random().toString(36).slice(-8);
+
+  try {
+    const password = await encryptPassword(passwordRamdom);
+
+    const user = await createUser(body, password);
+
+    const mensaje = welcomeMessage(user, passwordRamdom);
+    await transporter.sendMail(mensaje);
+
     res.status(201).json({
       data: user,
       message: "User created successfully",
