@@ -79,17 +79,18 @@ export const getAll = async (req, res, next) => {
 
 export const changePassword = async (req, res, next) => {};
 
-export const id = async (req, res, next, id) => {
+export const id = async (req, res, next) => {
+  const { id } = req.params;
   try {
-    const user = await prisma.user.findUnique({
+    const result = await prisma.user.findUnique({
       where: {
-        id: Number(id),
+        id,
       },
     });
-    if (!user) {
+    if (!result) {
       return next({ message: "User not found", status: 404 });
     }
-    req.user = user;
+    req.result = result;
     next();
   } catch (error) {
     next(error);
@@ -97,10 +98,26 @@ export const id = async (req, res, next, id) => {
 };
 
 export const read = async (req, res, next) => {
+  res.json({ data: req.result });
+};
+
+export const update = async (req, res, next) => {
+  const { params = {}, body = {} } = req;
+  const { id } = params;
+
   try {
+    const user = await prisma.user.update({
+      where: {
+        id,
+      },
+      data: body,
+    });
+
+    res.status(200).json({
+      data: user,
+      message: "User updated successfully",
+    });
   } catch (error) {
     next(error);
   }
 };
-
-export const update = async (req, res, next) => {};

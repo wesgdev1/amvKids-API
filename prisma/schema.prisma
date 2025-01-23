@@ -22,8 +22,9 @@ model User {
   updatedAt    DateTime? @updatedAt
   codigo       Int?    @default(autoincrement())
   numeroMultas Int?      @default(0)
-
+  state        Boolean?  @default(true)
   Order Order[]
+  
 }
 
 model Product {

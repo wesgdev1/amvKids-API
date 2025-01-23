@@ -39,6 +39,10 @@ export const getAllUsers = async () => {
           not: "Admin",
         },
       },
+      // ordenar del mas reciente
+      orderBy: {
+        createdAt: "desc",
+      },
     });
     return users;
   } catch (error) {

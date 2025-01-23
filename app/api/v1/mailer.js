@@ -79,6 +79,7 @@ export const welcomeMessage = (user, initialPassword) => {
                         <h2> Tus datos de ingreso son:</h2>
                       
                         <p>
+                            <b>Rol:</b> ${user.tipoUsuario}<br>
                             <b>Usuario:</b> ${user.email}<br>
     
                             <b>Contraseña inicial:</b> ${initialPassword}<br>
