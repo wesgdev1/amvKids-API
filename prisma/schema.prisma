@@ -38,8 +38,9 @@ model Product {
 model Model {
   id          String      @id @default(uuid()) @db.Uuid
   name        String
-  price       Int?
-  normalPrice Int?
+  price       Int?   //Precio de reventa
+  normalPrice Int?   //Precio normal user whatsapp o final
+  alliancePrice Int? //Precio para tiendas aliadas
   description String?
   reference   Int? 
   color       String?

@@ -142,3 +142,30 @@ export const remove = async (req, res, error) => {
     next(error);
   }
 };
+
+export const search = async (req, res, next) => {
+  const { params } = req;
+  const { searchTerm } = params;
+
+  // separo los terminos por espacio
+  const terms = searchTerm.split(" ");
+
+  try {
+    const result = await prisma.model.findMany({
+      where: {
+        OR: terms.map((term) => ({
+          name: {
+            contains: term,
+            mode: "insensitive",
+          },
+        })),
+      },
+    });
+
+    res.json({
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

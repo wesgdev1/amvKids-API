@@ -11,6 +11,8 @@ router
   .get(controller.getAll)
   .post(uploads.array("images"), controller.create);
 
+router.route("/search/:searchTerm").get(controller.search);
+
 router.param("id", controller.id);
 
 router
