@@ -7,6 +7,8 @@ export const create = async (req, res, next) => {
   const newBody = {
     ...body,
     price: parseInt(body.price),
+    normalPrice: parseInt(body.normalPrice),
+    alliancePrice: parseInt(body.alliancePrice),
     reference: parseInt(body.reference),
   };
 
