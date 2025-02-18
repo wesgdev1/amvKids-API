@@ -13,6 +13,8 @@ router
 
 router.route("/search/:searchTerm").get(controller.search);
 
+router.route("/filter").get(controller.filter);
+
 router.param("id", controller.id);
 
 router
