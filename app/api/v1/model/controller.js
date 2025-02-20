@@ -162,11 +162,34 @@ export const search = async (req, res, next) => {
           },
         })),
       },
+      orderBy: {
+        createdAt: "desc",
+      },
+      include: {
+        stocks: true,
+        images: true,
+        product: true,
+      },
+    });
+
+    const resultWithTotalStocks = result.map((item) => {
+      const totalStocks = item.stocks.reduce(
+        (acc, stock) => acc + stock.quantity,
+        0
+      );
+      return {
+        ...item,
+        totalStocks, // Agregar la suma total de stocks como una nueva propiedad
+      };
     });
 
     res.json({
-      data: result,
+      data: resultWithTotalStocks,
     });
+
+    // res.json({
+    //   data: result,
+    // });
   } catch (error) {
     next(error);
   }
