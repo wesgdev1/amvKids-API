@@ -15,6 +15,9 @@ export const create = async (req, res, next) => {
             modelId: item.modelId,
             size: item.size,
           },
+          include: {
+            Model: true,
+          },
         });
 
         if (stock === null) {
@@ -22,7 +25,14 @@ export const create = async (req, res, next) => {
         }
 
         if (stock.quantity < item.quantity) {
-          throw new Error("No hay suficiente stock");
+          throw new Error(
+            `No hay suficiente stock para el modelo ${stock.Model.name} y talla ${stock.size}`
+          );
+
+          // Quiero devolver la informacion del zapato exacto que no tiene stock
+          // throw new Error(
+          //   `No hay suficiente stock para el modelo ${stock.modelId} y talla ${stock.size}`
+          // );
         }
       })
     );
