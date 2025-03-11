@@ -27,6 +27,7 @@ export const auth = async (req, res, next) => {
       return next({ message: "Forbidden", status: 401 });
     }
     req.decoded = decoded;
+
     next();
   });
 };

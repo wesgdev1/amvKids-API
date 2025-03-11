@@ -5,6 +5,7 @@ export const router = Router();
 
 import * as controller from "./controller.js";
 import { uploads } from "../../../uploadPhotos/uploads.js";
+import { auth } from "../auth.js";
 
 router
   .route("/")
@@ -19,7 +20,7 @@ router.param("id", controller.id);
 
 router
   .route("/:id")
-  .get(controller.read)
-  .put(controller.update)
-  .patch(controller.update)
-  .delete(controller.remove);
+  .get(auth, controller.read)
+  .put(auth, controller.update)
+  .patch(auth, controller.update)
+  .delete(auth, controller.remove);

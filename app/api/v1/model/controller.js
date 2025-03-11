@@ -107,6 +107,26 @@ export const id = async (req, res, next) => {
 };
 
 export const read = async (req, res, next) => {
+  const { decoded = {} } = req;
+
+  const { tipoUsuario } = decoded;
+
+  // aqui voy a organizar enviando el precio que quiero que me apareza segun el tipo de Usuario
+  // necesito modificar la data
+
+  const { data } = req;
+
+  if (tipoUsuario === "Reventa") {
+    const { price, ...resto } = data;
+    req.data = { ...resto, price };
+  } else if (tipoUsuario === "Tienda Aliada") {
+    const { alliancePrice, ...resto } = data;
+    req.data = { ...resto, price: alliancePrice };
+  } else {
+    const { normalPrice, ...resto } = data;
+    req.data = { ...resto, price: normalPrice };
+  }
+
   res.json({ data: req.data });
 };
 
