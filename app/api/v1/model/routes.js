@@ -10,9 +10,11 @@ import { auth } from "../auth.js";
 router
   .route("/")
   .get(controller.getAll)
-  .post(uploads.array("images"), controller.create);
+
+  .post(uploads.array("images"), auth, controller.create);
 
 router.route("/search/:searchTerm").get(controller.search);
+router.route("/curvas").get(controller.getAllCurvas);
 
 router.route("/filter").get(controller.filter);
 
@@ -21,6 +23,6 @@ router.param("id", controller.id);
 router
   .route("/:id")
   .get(auth, controller.read)
-  .put(auth, controller.update)
-  .patch(auth, controller.update)
+  .put(auth, uploads.array("images"), controller.update)
+  .patch(auth, uploads.array("images"), controller.update)
   .delete(auth, controller.remove);

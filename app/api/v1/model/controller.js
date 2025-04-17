@@ -40,6 +40,53 @@ export const create = async (req, res, next) => {
   }
 };
 
+export const update = async (req, res, next) => {
+  const { decoded = {}, body = {}, params = {} } = req;
+  let newBody = {
+    ...body,
+    price: parseInt(body.price),
+    normalPrice: parseInt(body.normalPrice),
+    alliancePrice: parseInt(body.alliancePrice),
+    reference: parseInt(body.reference),
+  };
+  console.log(newBody);
+
+  const files = req.files;
+  console.log(files);
+  try {
+    if (files?.length > 0) {
+      const promises = files.map((file) => uploadFiles(file.path));
+      const resultados = await Promise.all(promises);
+      const images = [];
+
+      for (let i = 0; i < resultados.length; i++) {
+        images.push({ url: resultados[i].url });
+      }
+
+      files.forEach((file) => fs.unlinkSync(file.path));
+
+      newBody = { ...newBody, images: { deleteMany: {}, create: images } };
+    }
+
+    const result = await prisma.model.update({
+      where: {
+        id: params.id,
+      },
+      data: {
+        ...newBody,
+        updatedAt: new Date().toISOString(),
+      },
+    });
+
+    res.status(201);
+    res.json({
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getAll = async (req, res, next) => {
   try {
     const result = await prisma.model.findMany({
@@ -71,8 +118,44 @@ export const getAll = async (req, res, next) => {
   }
 };
 
+// Esta funcion se encargara de crear curvas de modelos, es decir, por cada modelo busca que haya
+// 1 zapato de cada talla,si no existe, no crea la curva, porque no hay stock
+// debe existir por ejemplo 1 unidad de cada talla para que se pueda crear la curva
+// las tallas son solo para ejemplo: 21 22 y 41, solo para probar
+export const getAllCurvas = async (req, res, next) => {
+  try {
+    const result = await prisma.model.findMany({
+      orderBy: {
+        createdAt: "desc",
+      },
+
+      include: {
+        stocks: true,
+        images: true,
+        product: true,
+      },
+
+      // en el where se busca que haya al menos 1 unidad de las tallas 21, 22 y 41
+      where: {
+        AND: [
+          { stocks: { some: { size: 21, quantity: { gte: 1 } } } },
+          { stocks: { some: { size: 22, quantity: { gte: 1 } } } },
+          { stocks: { some: { size: 41, quantity: { gte: 1 } } } },
+        ],
+      },
+    });
+
+    res.json({
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const id = async (req, res, next) => {
   const { params = {} } = req;
+  console.log("ando por aqui");
 
   try {
     const result = await prisma.model.findUnique({
@@ -81,7 +164,11 @@ export const id = async (req, res, next) => {
       },
 
       include: {
-        stocks: true,
+        stocks: {
+          orderBy: {
+            size: "asc",
+          },
+        },
         images: true,
       },
     });
@@ -122,31 +209,32 @@ export const read = async (req, res, next) => {
   } else if (tipoUsuario === "Tienda Aliada") {
     const { alliancePrice, ...resto } = data;
     req.data = { ...resto, price: alliancePrice };
-  } else {
-    const { normalPrice, ...resto } = data;
-    req.data = { ...resto, price: normalPrice };
   }
+  //  else {
+  //   const { normalPrice, ...resto } = data;
+  //   req.data = { ...resto, price: normalPrice };
+  // }  // lo comentare, pero no se
 
   res.json({ data: req.data });
 };
 
-export const update = async (req, res, next) => {
-  const { params = {}, body = {} } = req;
-  const { id } = params;
+// export const update = async (req, res, next) => {
+//   // const { params = {}, body = {} } = req;
+//   // const { id } = params;
 
-  try {
-    const result = await prisma.model.update({
-      where: {
-        id,
-      },
-      data: { ...body, updatedAt: new Date().toISOString() },
-    });
+//   // try {
+//   //   const result = await prisma.model.update({
+//   //     where: {
+//   //       id,
+//   //     },
+//   //     data: { ...body, updatedAt: new Date().toISOString() },
+//   //   });
 
-    res.json({ data: result });
-  } catch (error) {
-    next(error);
-  }
-};
+//   //   res.json({ data: result });
+//   // } catch (error) {
+//   //   next(error);
+//   // }
+// };
 
 export const remove = async (req, res, error) => {
   const { params = {} } = req;

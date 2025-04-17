@@ -121,3 +121,23 @@ export const update = async (req, res, next) => {
     next(error);
   }
 };
+
+export const myProfile = async (req, res, next) => {
+  const { id } = req.body;
+  try {
+    const user = await prisma.user.findUnique({
+      where: {
+        id,
+      },
+    });
+    if (!user) {
+      return next({ message: "User not found", status: 404 });
+    }
+    res.status(200).json({
+      data: user,
+      message: "User retrieved successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};

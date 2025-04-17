@@ -372,6 +372,8 @@ export const updateOrderItem = async (req, res, next) => {
 
     const item = order.orderItems.find((item) => item.id === itemId);
 
+    // Solo quiero eliminar de 1
+
     if (item === undefined) {
       throw new Error("Item not found");
     }

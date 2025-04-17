@@ -20,11 +20,10 @@ model User {
   name         String
   createdAt    DateTime  @default(now())
   updatedAt    DateTime? @updatedAt
-  codigo       Int?    @default(autoincrement())
+  codigo       Int?      @default(autoincrement())
   numeroMultas Int?      @default(0)
   state        Boolean?  @default(true)
-  Order Order[]
-  
+  Order        Order[]
 }
 
 model Product {
@@ -36,21 +35,21 @@ model Product {
 }
 
 model Model {
-  id          String      @id @default(uuid()) @db.Uuid
-  name        String
-  price       Int?   //Precio de reventa
-  normalPrice Int?   //Precio normal user whatsapp o final
+  id            String      @id @default(uuid()) @db.Uuid
+  name          String
+  price         Int? //Precio de reventa
+  normalPrice   Int? //Precio normal user whatsapp o final
   alliancePrice Int? //Precio para tiendas aliadas
-  description String?
-  reference   Int? 
-  color       String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime?   @updatedAt
-  product     Product?    @relation(fields: [productId], references: [id])
-  productId   String?     @db.Uuid
-  stocks      Stock[]
-  OrderItem   OrderItem[]
-  images      Image[]
+  description   String?
+  reference     Int?
+  color         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime?   @updatedAt
+  product       Product?    @relation(fields: [productId], references: [id])
+  productId     String?     @db.Uuid
+  stocks        Stock[]
+  OrderItem     OrderItem[]
+  images        Image[]
 }
 
 model Image {
@@ -81,7 +80,7 @@ model Order {
   userId      String?     @db.Uuid
   orderItems  OrderItem[]
   total       Int?
-  state       String?     @default("Creada") // Creada, Pago Enviado, Pago Confirmado ,Entregada, CanceladaAdmin
+  state       String?     @default("Creada") // Creada, Pago Enviado, Pago Confirmado ,Alistada,Pedido Entregado, CanceladaAdmin
   comments    String?
   paymentUrl  String?
 }
