@@ -12,8 +12,8 @@ cloudinary.config({
 export const uploadFiles = async (file) => {
   const photoConfig = {
     folder: "products",
-    width: 400,
-    height: 400,
+    width: 600,
+    height: 600,
     use_filename: true,
     unique_filename: false,
   };
