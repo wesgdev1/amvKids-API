@@ -263,7 +263,7 @@ export const search = async (req, res, next) => {
   try {
     const result = await prisma.model.findMany({
       where: {
-        OR: terms.map((term) => ({
+        AND: terms.map((term) => ({
           name: {
             contains: term,
             mode: "insensitive",
