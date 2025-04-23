@@ -50,15 +50,19 @@ model Model {
   stocks        Stock[]
   OrderItem     OrderItem[]
   images        Image[]
+  isActive      Boolean?    @default(true)
+  isRecommended Boolean?    @default(false)
 }
 
 model Image {
-  id        String    @id @default(uuid()) @db.Uuid
-  url       String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime? @updatedAt
-  Model     Model?    @relation(fields: [modelId], references: [id])
-  modelId   String?   @db.Uuid
+  id            String    @id @default(uuid()) @db.Uuid
+  isPrimary     Boolean?  @default(false)
+  isRecommended Boolean?  @default(false)
+  url           String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime? @updatedAt
+  Model         Model?    @relation(fields: [modelId], references: [id])
+  modelId       String?   @db.Uuid
 }
 
 model Stock {
