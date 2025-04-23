@@ -15,6 +15,7 @@ router
 
 router.route("/search/:searchTerm").get(controller.search);
 router.route("/curvas").get(controller.getAllCurvas);
+router.route("/recommended").get(controller.getRecommended);
 
 router.route("/filter").get(controller.filter);
 
@@ -23,6 +24,6 @@ router.param("id", controller.id);
 router
   .route("/:id")
   .get(auth, controller.read)
-  .put(auth, uploads.array("images"), controller.update)
+  .put(auth, controller.updateText)
   .patch(auth, uploads.array("images"), controller.update)
   .delete(auth, controller.remove);

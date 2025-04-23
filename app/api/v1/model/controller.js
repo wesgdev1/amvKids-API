@@ -87,6 +87,27 @@ export const update = async (req, res, next) => {
   }
 };
 
+export const updateText = async (req, res, next) => {
+  const { params = {}, body = {} } = req;
+  const { id } = params;
+
+  try {
+    const user = await prisma.model.update({
+      where: {
+        id,
+      },
+      data: body,
+    });
+
+    res.status(200).json({
+      data: user,
+      message: "Model updated successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getAll = async (req, res, next) => {
   try {
     const result = await prisma.model.findMany({
@@ -112,6 +133,28 @@ export const getAll = async (req, res, next) => {
 
     res.json({
       data: resultWithTotalStocks,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// controlador para obtener los modelos con propiedad isRecommended = true
+export const getRecommended = async (req, res, next) => {
+  try {
+    const result = await prisma.model.findMany({
+      where: {
+        isRecommended: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      include: {
+        images: true,
+      },
+    });
+    res.json({
+      data: result,
     });
   } catch (error) {
     next(error);
