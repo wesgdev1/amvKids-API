@@ -307,10 +307,10 @@ export const search = async (req, res, next) => {
     const result = await prisma.model.findMany({
       where: {
         AND: terms.map((term) => ({
-          name: {
-            contains: term,
-            mode: "insensitive",
-          },
+          OR: [
+            { name: { contains: term, mode: "insensitive" } },
+            { color: { contains: term, mode: "insensitive" } },
+          ],
         })),
       },
       orderBy: {
