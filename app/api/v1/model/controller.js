@@ -380,6 +380,7 @@ export const filter = async (req, res, next) => {
       whereClause.AND.push({
         color: {
           in: colors,
+          mode: "insensitive",
         },
       });
     }
