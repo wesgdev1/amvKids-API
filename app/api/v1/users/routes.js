@@ -5,6 +5,7 @@ export const router = Router();
 
 import * as controller from "./controller.js";
 import { auth } from "../auth.js";
+import { uploads } from "../../../uploadPhotos/uploads.js";
 
 /**
 { * /api/v1/signup POST - register
@@ -26,4 +27,4 @@ router
   .route("/:id")
   .get(controller.read)
   .put(auth, controller.update)
-  .patch(auth, controller.update);
+  .patch(auth, uploads.array("images"), controller.updatePhoto);

@@ -1,8 +1,10 @@
 import { prisma } from "../../../database.js";
+import { uploadFiles } from "../../../uploadPhotos/uploads.js";
 import { signToken } from "../auth.js";
 import { mensajeCliente, transporter, welcomeMessage } from "../mailer.js";
 import { encryptPassword, verifyPassword } from "./model.js";
 import { createUser, getAllUsers, loginUser } from "./services.js";
+import fs from "fs";
 
 export const signup = async (req, res, next) => {
   const { body } = req;
@@ -115,6 +117,41 @@ export const update = async (req, res, next) => {
 
     res.status(200).json({
       data: user,
+      message: "User updated successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updatePhoto = async (req, res, next) => {
+  const { params = {}, body = {} } = req;
+  const { id } = params;
+  const files = req.files;
+  console.log(files);
+  console.log(id);
+
+  try {
+    const promises = files.map((file) => uploadFiles(file.path));
+    const resultados = await Promise.all(promises);
+    const images = [];
+    for (let i = 0; i < resultados.length; i++) {
+      images.push({ urlFoto: resultados[i].url });
+    }
+
+    files.forEach((file) => fs.unlinkSync(file.path));
+
+    const result = await prisma.user.update({
+      where: {
+        id,
+      },
+      data: {
+        urlFoto: images[0].urlFoto,
+      },
+    });
+
+    res.status(200).json({
+      data: result,
       message: "User updated successfully",
     });
   } catch (error) {
