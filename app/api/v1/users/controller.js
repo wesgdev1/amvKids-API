@@ -79,7 +79,48 @@ export const getAll = async (req, res, next) => {
   }
 };
 
-export const changePassword = async (req, res, next) => {};
+export const changePassword = async (req, res, next) => {
+  const { body = {}, decoded = {} } = req;
+  const { id } = decoded;
+
+  console.log(body);
+  console.log(id);
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: {
+        id,
+      },
+      select: {
+        password: true,
+      },
+    });
+
+    const passwordMatch = await verifyPassword(body.password, user.password);
+
+    if (!passwordMatch) {
+      return next({
+        message: "La contraseña antigua no coincide, revisa la informacion",
+        status: 400,
+      });
+    }
+
+    const newPassword = await encryptPassword(body.newPassword);
+
+    const result = await prisma.user.update({
+      where: {
+        id,
+      },
+      data: {
+        password: newPassword,
+      },
+    });
+
+    res.json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const id = async (req, res, next) => {
   const { id } = req.params;

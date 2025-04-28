@@ -87,6 +87,7 @@ model Order {
   state       String?     @default("Creada") // Creada, Pago Enviado, Pago Confirmado ,Alistada,Pedido Entregado, CanceladaAdmin
   comments    String?
   paymentUrl  String?
+  areReady    Boolean?    @default(false)
 }
 
 model OrderItem {

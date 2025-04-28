@@ -17,7 +17,7 @@ import { uploads } from "../../../uploadPhotos/uploads.js";
 router.route("/signup").post(controller.signup);
 router.route("/signin").post(controller.signin);
 router.route("/create").post(auth, controller.createUsers);
-// router.route("/auth/change-password").put(auth, controller.changePassword);
+router.route("/auth/change-password").put(auth, controller.changePassword);
 router.route("/getAll").get(auth, controller.getAll);
 router.route("/myProfile").get(auth, controller.myProfile);
 
