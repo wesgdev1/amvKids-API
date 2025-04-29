@@ -145,6 +145,28 @@ export const getAll = async (req, res, next) => {
   }
 };
 
+export const getAllPreparer = async (req, res, next) => {
+  try {
+    const result = await prisma.order.findMany({
+      where: {
+        areReady: false,
+      },
+      include: {
+        user: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    res.json({
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getMyOrders = async (req, res, next) => {
   const { decoded = {} } = req;
   const { id: userId } = decoded;
@@ -257,7 +279,7 @@ export const update = async (req, res, next) => {
 export const updatePatch = async (req, res, next) => {
   const { params = {}, body = {} } = req;
   const { id } = params;
-  const { state } = body;
+  const { state, areReady } = body;
 
   try {
     const result = await prisma.order.update({
@@ -266,6 +288,7 @@ export const updatePatch = async (req, res, next) => {
       },
       data: {
         state,
+        areReady,
       },
     });
 
