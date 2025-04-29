@@ -252,6 +252,9 @@ export const read = async (req, res, next) => {
   } else if (tipoUsuario === "Tienda Aliada") {
     const { alliancePrice, ...resto } = data;
     req.data = { ...resto, price: alliancePrice };
+  } else if (tipoUsuario === "Cliente") {
+    const { normalPrice, ...resto } = data;
+    req.data = { ...resto, price: normalPrice };
   }
   //  else {
   //   const { normalPrice, ...resto } = data;
