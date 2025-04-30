@@ -181,9 +181,9 @@ export const getAllCurvas = async (req, res, next) => {
       // en el where se busca que haya al menos 1 unidad de las tallas 21, 22 y 41
       where: {
         AND: [
-          { stocks: { some: { size: 21, quantity: { gte: 1 } } } },
-          { stocks: { some: { size: 22, quantity: { gte: 1 } } } },
-          { stocks: { some: { size: 41, quantity: { gte: 1 } } } },
+          { stocks: { some: { size: 30, quantity: { gte: 1 } } } },
+          { stocks: { some: { size: 45, quantity: { gte: 1 } } } },
+          // { stocks: { some: { size: 41, quantity: { gte: 1 } } } },
         ],
       },
     });
