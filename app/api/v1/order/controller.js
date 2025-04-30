@@ -373,7 +373,7 @@ export const remove = async (req, res, error) => {
 export const updateOrderItem = async (req, res, next) => {
   // eliminar un item de la orden segun el id del item y devolver las cantidades al stock
   const { body } = req;
-  const { orderId, itemId } = body;
+  const { orderId, itemId, potentialNewTotal } = body;
 
   try {
     const order = await prisma.order.findUnique({
@@ -402,6 +402,15 @@ export const updateOrderItem = async (req, res, next) => {
     }
 
     await prisma.$transaction(async (transaction) => {
+      // actualizo el total de la orden
+      await transaction.order.update({
+        where: {
+          id: orderId,
+        },
+        data: {
+          total: potentialNewTotal,
+        },
+      });
       await transaction.orderItem.delete({
         where: {
           id: itemId,
