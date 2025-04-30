@@ -393,6 +393,7 @@ export const filter = async (req, res, next) => {
         product: {
           name: {
             in: brands,
+            mode: "insensitive",
           },
         },
       });
