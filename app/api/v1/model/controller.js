@@ -139,6 +139,27 @@ export const getAll = async (req, res, next) => {
   }
 };
 
+export const getAllNamesModelsWithColor = async (req, res, next) => {
+  try {
+    const result = await prisma.model.findMany({
+      orderBy: {
+        createdAt: "desc",
+      },
+      select: {
+        id: true,
+        name: true,
+        color: true,
+      },
+    });
+
+    res.json({
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // controlador para obtener los modelos con propiedad isRecommended = true
 export const getRecommended = async (req, res, next) => {
   try {
