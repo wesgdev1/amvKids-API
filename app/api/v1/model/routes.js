@@ -24,6 +24,7 @@ router.param("id", controller.id);
 router
   .route("/:id")
   .get(auth, controller.read)
+
   .put(auth, controller.updateText)
   .patch(auth, uploads.array("images"), controller.update)
   .delete(auth, controller.remove);
