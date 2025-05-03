@@ -113,8 +113,8 @@ export const create = async (req, res, next) => {
       console.log(orderUpdate);
 
       // Enviar correo
-      const mensaje = mensajeCliente(orderUpdate);
-      await transporter.sendMail(mensaje);
+      // const mensaje = mensajeCliente(orderUpdate);
+      // await transporter.sendMail(mensaje);
     }
 
     res.status(201);
