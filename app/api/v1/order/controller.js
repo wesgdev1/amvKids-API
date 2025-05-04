@@ -644,11 +644,14 @@ export const crearLinkDePago = async (req, res) => {
 };
 
 export const webhook = async (req, res) => {
+  console.log("Webhook Bold:", req.body); // Log para depuración
   try {
     const { status, description } = req.body;
+    console.log("Webhook Bold:", req.body); // Log para depuración
 
     if (status === "PAID" && description) {
       const codigoOrder = description.match(/\d+/)?.[0]; // Extrae número de orden
+      console.log("Código de orden extraído:", codigoOrder); // Log para depuración
 
       if (codigoOrder) {
         await prisma.order.updateMany({
