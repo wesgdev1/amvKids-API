@@ -675,6 +675,7 @@ export const webhook = async (req, res) => {
     const evento = req.body;
     const tipo = evento.type;
     const paymentLink = evento.data?.metadata?.reference;
+    const idTransaction = evento.data?.payment_id;
 
     // if (!paymentLink) {
     //   console.error("No se encontró el payment_link en el evento:", evento);
@@ -691,6 +692,7 @@ export const webhook = async (req, res) => {
         data: {
           pagoBold: true,
           state: "Pago Enviado",
+          idTransaction: idTransaction,
         },
       });
       //
