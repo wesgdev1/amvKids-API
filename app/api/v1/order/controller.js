@@ -609,6 +609,7 @@ export const updateOrderItem = async (req, res, next) => {
 export const crearLinkDePago = async (req, res) => {
   try {
     const { total, descripcion, email, orderId } = req.body;
+    console.log(total, descripcion, email, orderId); // Log para depuración
 
     const body = {
       amount_type: "CLOSE",
@@ -621,6 +622,10 @@ export const crearLinkDePago = async (req, res) => {
       payment_methods: ["PSE", "CREDIT_CARD", "NEQUI"],
       payer_email: email,
       image_url: "https://robohash.org/sad.png",
+
+      metadata: {
+        orderId: orderId,
+      },
     };
 
     const response = await fetch(
@@ -635,6 +640,27 @@ export const crearLinkDePago = async (req, res) => {
       }
     );
 
+    if (!response.ok) {
+      console.error("Error en la respuesta de Bold:", response.statusText);
+      return res.status(500).json({ error: "Error al crear el link de pago" });
+    } else {
+      const auxres = response.clone(); // Clonamos la respuesta para poder leerla dos veces
+      const aux = await auxres.json(); // Leemos el cuerpo de la respuesta clonada
+      console.log(aux.payload.payment_link); // Log para depuración
+
+      console.log("orderId:", orderId); // Log para depuración
+      await prisma.order.updateMany({
+        where: {
+          id: orderId,
+        },
+        data: {
+          payment_link: aux.payload.payment_link,
+        },
+      });
+    }
+
+    // actualizar el id del linl de pago en orders
+
     const data = await response.json();
     res.json(data);
   } catch (error) {
@@ -646,29 +672,63 @@ export const crearLinkDePago = async (req, res) => {
 export const webhook = async (req, res) => {
   console.log("Webhook Bold:", req.body); // Log para depuración
   try {
-    const { status, description } = req.body;
-    console.log("Webhook Bold:", req.body); // Log para depuración
+    const evento = req.body;
+    const tipo = evento.type;
+    const paymentLink = evento.data?.metadata?.reference;
 
-    if (status === "PAID" && description) {
-      const codigoOrder = description.match(/\d+/)?.[0]; // Extrae número de orden
-      console.log("Código de orden extraído:", codigoOrder); // Log para depuración
+    // if (!paymentLink) {
+    //   console.error("No se encontró el payment_link en el evento:", evento);
+    //   return res.status(400).send("payment_link no encontrado en el evento");
+    // }
 
-      if (codigoOrder) {
-        await prisma.order.updateMany({
-          where: {
-            codigoOrder,
-          },
-          data: {
-            pagoBold: true,
-            state: "Pago Enviado",
-          },
-        });
-        const idOrden = codigoOrder; // Asignar el ID de la orden a una variable
-        console.log(`Orden #${idOrden} marcada como pagada`);
-      }
+    if (tipo === "SALE_APPROVED") {
+      console.log("✅ Pago aprobado para orden:", paymentLink);
+      // Actualiza en tu base de datos como PAGADA
+      await prisma.order.updateMany({
+        where: {
+          payment_link: paymentLink,
+        },
+        data: {
+          pagoBold: true,
+          state: "Pago Enviado",
+        },
+      });
+      //
     }
 
-    res.sendStatus(200);
+    if (tipo === "SALE_REJECTED") {
+      console.log("❌ Pago rechazado para orden:", orderId);
+      // await marcarComoRechazada(orderId);
+    }
+
+    if (tipo === "VOID_APPROVED") {
+      console.log("🛑 Pago anulado para orden:", orderId);
+    }
+
+    res.status(200).send("OK");
+    // const { status, description } = req.body;
+    // console.log("Webhook Bold:", req.body); // Log para depuración
+
+    // if (status === "PAID" && description) {
+    //   const codigoOrder = description.match(/\d+/)?.[0]; // Extrae número de orden
+    //   console.log("Código de orden extraído:", codigoOrder); // Log para depuración
+
+    //   if (codigoOrder) {
+    //     await prisma.order.updateMany({
+    //       where: {
+    //         codigoOrder,
+    //       },
+    //       data: {
+    //         pagoBold: true,
+    //         state: "Pago Enviado",
+    //       },
+    //     });
+    //     const idOrden = codigoOrder; // Asignar el ID de la orden a una variable
+    //     console.log(`Orden #${idOrden} marcada como pagada`);
+    //   }
+    // }
+
+    // res.sendStatus(200);
   } catch (err) {
     console.error("Error en webhook Bold:", err);
     res.sendStatus(500);

@@ -76,20 +76,21 @@ model Stock {
 }
 
 model Order {
-  id          String      @id @default(uuid()) @db.Uuid
-  codigoOrder Int?        @default(autoincrement())
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime?   @updatedAt
-  user        User?       @relation(fields: [userId], references: [id])
-  userId      String?     @db.Uuid
-  orderItems  OrderItem[]
-  total       Int?
-  state       String?     @default("Creada") // Creada, Pago Enviado, Pago Confirmado ,Alistada,Pedido Entregado, CanceladaAdmin
-  comments    String?
-  paymentUrl  String?
-  areReady    Boolean?    @default(false)
-  typeOrder   String?     @default("Normal") // Normal, Curva
-  pagoBold    Boolean?    @default(false)
+  id           String      @id @default(uuid()) @db.Uuid
+  codigoOrder  Int?        @default(autoincrement())
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime?   @updatedAt
+  user         User?       @relation(fields: [userId], references: [id])
+  userId       String?     @db.Uuid
+  orderItems   OrderItem[]
+  total        Int?
+  state        String?     @default("Creada") // Creada, Pago Enviado, Pago Confirmado ,Alistada,Pedido Entregado, CanceladaAdmin
+  comments     String?
+  paymentUrl   String?
+  areReady     Boolean?    @default(false)
+  typeOrder    String?     @default("Normal") // Normal, Curva
+  pagoBold     Boolean?    @default(false)
+  payment_link String?
 }
 
 model OrderItem {
