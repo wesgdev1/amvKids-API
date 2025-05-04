@@ -605,3 +605,69 @@ export const updateOrderItem = async (req, res, next) => {
     next(error);
   }
 };
+
+export const crearLinkDePago = async (req, res) => {
+  try {
+    const { total, descripcion, email, orderId } = req.body;
+
+    const body = {
+      amount_type: "CLOSE",
+      amount: {
+        currency: "COP",
+        total_amount: total,
+      },
+      description: descripcion,
+      callback_url: "https://amvkids.com.co/resultado?orderId=" + orderId,
+      payment_methods: ["PSE", "CREDIT_CARD", "NEQUI"],
+      payer_email: email,
+      image_url: "https://robohash.org/sad.png",
+    };
+
+    const response = await fetch(
+      "https://integrations.api.bold.co/online/link/v1",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `x-api-key ${process.env.BOLD_API_KEY_PRUEBA}`,
+        },
+        body: JSON.stringify(body),
+      }
+    );
+
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error("Error al crear el link de pago:", error);
+    res.status(500).json({ error: "No se pudo generar el link de pago" });
+  }
+};
+
+export const webhook = async (req, res) => {
+  try {
+    const { status, description } = req.body;
+
+    if (status === "PAID" && description) {
+      const codigoOrder = description.match(/\d+/)?.[0]; // Extrae número de orden
+
+      if (codigoOrder) {
+        await prisma.order.updateMany({
+          where: {
+            codigoOrder,
+          },
+          data: {
+            pagoBold: true,
+            state: "Pago Enviado",
+          },
+        });
+        const idOrden = codigoOrder; // Asignar el ID de la orden a una variable
+        console.log(`Orden #${idOrden} marcada como pagada`);
+      }
+    }
+
+    res.sendStatus(200);
+  } catch (err) {
+    console.error("Error en webhook Bold:", err);
+    res.sendStatus(500);
+  }
+};

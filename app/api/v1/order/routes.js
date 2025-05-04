@@ -12,6 +12,8 @@ router.route("/preparer").get(auth, controller.getAllPreparer);
 router.route("/myOrders").get(auth, controller.getMyOrders);
 router.route("/deleteItems").put(auth, controller.updateOrderItem);
 router.route("/ordersByUser/:userId").get(auth, controller.getOrderByUser);
+router.route("/pagos").post(controller.crearLinkDePago);
+router.route("/webhookBold").post(controller.webhook);
 
 router.param("id", controller.id);
 
