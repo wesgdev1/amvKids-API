@@ -739,67 +739,33 @@ export const webhook = async (req, res) => {
 
 export const countOrderByDate = async (req, res, next) => {
   const { body = {} } = req;
-  // Esperar 'period' ('day', 'week', 'month') y 'date' (fecha de inicio/referencia)
-  const { period, date: dateString } = body;
-
-  let startDate;
-  let endDate;
+  // Esperar 'startDate' y 'endDate' como strings ISO 8601 o similar desde el frontend
+  const { startDate: startDateString, endDate: endDateString } = body;
 
   try {
-    // Validar que se proporcionen 'period' y 'date'
-    if (!period || !dateString) {
+    // Validar que se proporcionen startDate y endDate
+    if (!startDateString || !endDateString) {
       return next({
-        message: "Los parámetros 'period' y 'date' son requeridos.",
+        message: "Los parámetros 'startDate' y 'endDate' son requeridos.",
         status: 400,
       });
     }
 
-    // Parsear la fecha de referencia
-    const baseDate = new Date(dateString);
-    // Validar si la fecha es válida
-    if (isNaN(baseDate.getTime())) {
-      return next({ message: "Formato de fecha inválido.", status: 400 });
-    }
+    // Convertir los strings de fecha a objetos Date
+    const startDate = new Date(startDateString);
+    const endDate = new Date(endDateString);
 
-    // Establecer la hora a 00:00:00.000 para consistencia al inicio del día
-    baseDate.setHours(0, 0, 0, 0);
-
-    // Calcular startDate y endDate según el periodo
-    switch (period) {
-      case "day":
-        startDate = new Date(baseDate);
-        endDate = new Date(baseDate);
-        // Establecer la hora al final del día (23:59:59.999)
-        endDate.setHours(23, 59, 59, 999);
-        break;
-      case "week":
-        startDate = new Date(baseDate); // Asume que 'dateString' es el inicio de la semana deseada
-        endDate = new Date(startDate);
-        endDate.setDate(startDate.getDate() + 6); // Añadir 6 días para completar la semana
-        // Establecer la hora al final del último día de la semana
-        endDate.setHours(23, 59, 59, 999);
-        break;
-      case "month":
-        // Inicio del mes: primer día del mes de baseDate
-        startDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
-        startDate.setHours(0, 0, 0, 0);
-        // Fin del mes: último día del mes de baseDate
-        // Se calcula obteniendo el día 0 del mes siguiente
-        endDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0);
-        // Establecer la hora al final del último día del mes
-        endDate.setHours(23, 59, 59, 999);
-        break;
-      default:
-        // Si el periodo no es válido
-        return next({
-          message: "Valor de 'period' inválido. Usar 'day', 'week', o 'month'.",
-          status: 400,
-        });
+    // Validar si las fechas son válidas
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return next({
+        message: "Formato de fecha inválido para startDate o endDate.",
+        status: 400,
+      });
     }
 
     // Log para depuración (opcional)
     console.log(
-      `Periodo: ${period}, Fecha Base: ${dateString}, StartDate: ${startDate.toISOString()}, EndDate: ${endDate.toISOString()}`
+      `Recibido: StartDate: ${startDateString}, EndDate: ${endDateString}. Usando: StartDate: ${startDate.toISOString()}, EndDate: ${endDate.toISOString()}`
     );
 
     // Contar las órdenes en el rango calculado
@@ -821,5 +787,136 @@ export const countOrderByDate = async (req, res, next) => {
     console.error("Error en countOrderByDate:", error);
     // Pasar un error genérico al siguiente middleware
     next({ message: "Error al contar las órdenes por fecha.", status: 500 });
+  }
+};
+
+export const sumarTotalOrdenesByDate = async (req, res, next) => {
+  const { body = {} } = req;
+  // Esperar 'startDate' y 'endDate' como strings ISO 8601 o similar desde el frontend
+  const { startDate: startDateString, endDate: endDateString } = body;
+
+  try {
+    // Validar que se proporcionen startDate y endDate
+    if (!startDateString || !endDateString) {
+      return next({
+        message: "Los parámetros 'startDate' y 'endDate' son requeridos.",
+        status: 400,
+      });
+    }
+
+    // Convertir los strings de fecha a objetos Date
+    const startDate = new Date(startDateString);
+    const endDate = new Date(endDateString);
+
+    // Validar si las fechas son válidas
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return next({
+        message: "Formato de fecha inválido para startDate o endDate.",
+        status: 400,
+      });
+    }
+
+    // Log para depuración (opcional)
+    console.log(
+      `Sumando totales: StartDate: ${startDate.toISOString()}, EndDate: ${endDate.toISOString()}`
+    );
+
+    // Calcular la suma del campo 'total' para las órdenes filtradas
+    const result = await prisma.order.aggregate({
+      _sum: {
+        total: true, // Sumar el campo 'total'
+      },
+      where: {
+        state: "Pedido Entregado", // Filtrar por estado específico
+        createdAt: {
+          gte: startDate, // Mayor o igual que startDate
+          lte: endDate, // Menor o igual que endDate
+        },
+      },
+    });
+
+    // El resultado de la agregación estará en result._sum.total
+    // Si no hay órdenes que coincidan, _sum.total será null.
+    const totalSum = result._sum.total || 0; // Devolver 0 si la suma es null
+
+    // Devolver el resultado
+    res.json({
+      data: totalSum,
+    });
+  } catch (error) {
+    // Loggear el error en el servidor para diagnóstico
+    console.error("Error en sumarTotalOrdenesByDate:", error);
+    // Pasar un error genérico al siguiente middleware
+    next({
+      message: "Error al sumar los totales de las órdenes por fecha.",
+      status: 500,
+    });
+  }
+};
+
+export const sumarParesVendidosPorFecha = async (req, res, next) => {
+  const { body = {} } = req;
+  // Esperar 'startDate' y 'endDate' como strings ISO 8601 o similar desde el frontend
+  const { startDate: startDateString, endDate: endDateString } = body;
+
+  try {
+    // Validar que se proporcionen startDate y endDate
+    if (!startDateString || !endDateString) {
+      return next({
+        message: "Los parámetros 'startDate' y 'endDate' son requeridos.",
+        status: 400,
+      });
+    }
+
+    // Convertir los strings de fecha a objetos Date
+    const startDate = new Date(startDateString);
+    const endDate = new Date(endDateString);
+
+    // Validar si las fechas son válidas
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return next({
+        message: "Formato de fecha inválido para startDate o endDate.",
+        status: 400,
+      });
+    }
+
+    // Log para depuración (opcional)
+    console.log(
+      `Sumando pares vendidos: StartDate: ${startDate.toISOString()}, EndDate: ${endDate.toISOString()}`
+    );
+
+    // Calcular la suma de la cantidad de OrderItems para las órdenes filtradas
+    const result = await prisma.orderItem.aggregate({
+      _sum: {
+        quantity: true, // Sumar el campo 'quantity' de OrderItem
+      },
+      where: {
+        // Filtrar basado en la orden relacionada
+        Order: {
+          state: "Pedido Entregado", // Filtrar por estado de la orden
+          createdAt: {
+            gte: startDate, // Mayor o igual que startDate
+            lte: endDate, // Menor o igual que endDate
+          },
+        },
+      },
+    });
+
+    // El resultado de la agregación estará en result._sum.quantity
+    // Si no hay items que coincidan, _sum.quantity será null.
+    const totalQuantity = result._sum.quantity || 0; // Devolver 0 si la suma es null
+
+    // Devolver el resultado
+    res.json({
+      data: totalQuantity,
+    });
+  } catch (error) {
+    // Loggear el error en el servidor para diagnóstico
+    console.error("Error en sumarParesVendidosPorFecha:", error);
+    // Pasar un error genérico al siguiente middleware
+    next({
+      message: "Error al sumar los pares vendidos por fecha.",
+      status: 500,
+    });
   }
 };
