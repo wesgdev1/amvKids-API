@@ -410,7 +410,7 @@ export const read = async (req, res, next) => {
 };
 
 export const update = async (req, res, next) => {
-  const { params = {}, body = {} } = req;
+  const { params = {} } = req;
   const { id } = params;
   const files = req.files;
   console.log(files);
@@ -734,5 +734,92 @@ export const webhook = async (req, res) => {
   } catch (err) {
     console.error("Error en webhook Bold:", err);
     res.sendStatus(500);
+  }
+};
+
+export const countOrderByDate = async (req, res, next) => {
+  const { body = {} } = req;
+  // Esperar 'period' ('day', 'week', 'month') y 'date' (fecha de inicio/referencia)
+  const { period, date: dateString } = body;
+
+  let startDate;
+  let endDate;
+
+  try {
+    // Validar que se proporcionen 'period' y 'date'
+    if (!period || !dateString) {
+      return next({
+        message: "Los parámetros 'period' y 'date' son requeridos.",
+        status: 400,
+      });
+    }
+
+    // Parsear la fecha de referencia
+    const baseDate = new Date(dateString);
+    // Validar si la fecha es válida
+    if (isNaN(baseDate.getTime())) {
+      return next({ message: "Formato de fecha inválido.", status: 400 });
+    }
+
+    // Establecer la hora a 00:00:00.000 para consistencia al inicio del día
+    baseDate.setHours(0, 0, 0, 0);
+
+    // Calcular startDate y endDate según el periodo
+    switch (period) {
+      case "day":
+        startDate = new Date(baseDate);
+        endDate = new Date(baseDate);
+        // Establecer la hora al final del día (23:59:59.999)
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case "week":
+        startDate = new Date(baseDate); // Asume que 'dateString' es el inicio de la semana deseada
+        endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 6); // Añadir 6 días para completar la semana
+        // Establecer la hora al final del último día de la semana
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case "month":
+        // Inicio del mes: primer día del mes de baseDate
+        startDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+        startDate.setHours(0, 0, 0, 0);
+        // Fin del mes: último día del mes de baseDate
+        // Se calcula obteniendo el día 0 del mes siguiente
+        endDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0);
+        // Establecer la hora al final del último día del mes
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      default:
+        // Si el periodo no es válido
+        return next({
+          message: "Valor de 'period' inválido. Usar 'day', 'week', o 'month'.",
+          status: 400,
+        });
+    }
+
+    // Log para depuración (opcional)
+    console.log(
+      `Periodo: ${period}, Fecha Base: ${dateString}, StartDate: ${startDate.toISOString()}, EndDate: ${endDate.toISOString()}`
+    );
+
+    // Contar las órdenes en el rango calculado
+    const result = await prisma.order.count({
+      where: {
+        createdAt: {
+          gte: startDate, // Mayor o igual que startDate
+          lte: endDate, // Menor o igual que endDate
+        },
+      },
+    });
+
+    // Devolver el resultado
+    res.json({
+      data: result,
+    });
+  } catch (error) {
+    // Loggear el error en el servidor para diagnóstico
+    console.error("Error en countOrderByDate:", error);
+    // Pasar un error genérico al siguiente middleware
+    next({ message: "Error al contar las órdenes por fecha.", status: 500 });
   }
 };

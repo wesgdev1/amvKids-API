@@ -3,7 +3,7 @@ import { uploadFiles } from "../../../uploadPhotos/uploads.js";
 import fs from "fs";
 
 export const create = async (req, res, next) => {
-  const { body = {}, decoded = {} } = req;
+  const { body = {} } = req;
   const newBody = {
     ...body,
     price: parseInt(body.price),
@@ -41,7 +41,7 @@ export const create = async (req, res, next) => {
 };
 
 export const update = async (req, res, next) => {
-  const { decoded = {}, body = {}, params = {} } = req;
+  const { body = {}, params = {} } = req;
   let newBody = {
     ...body,
     price: parseInt(body.price),
@@ -424,9 +424,18 @@ export const filter = async (req, res, next) => {
       whereClause.AND.push({
         stocks: {
           some: {
-            size: {
-              in: sizes,
-            },
+            AND: [
+              {
+                size: {
+                  in: sizes,
+                },
+              },
+              {
+                quantity: {
+                  gt: 0,
+                },
+              },
+            ],
           },
         },
       });
