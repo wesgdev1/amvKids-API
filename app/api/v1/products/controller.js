@@ -104,3 +104,15 @@ export const remove = async (req, res, error) => {
     next(error);
   }
 };
+
+export const countProducts = async (req, res, next) => {
+  try {
+    const result = await prisma.product.count();
+
+    res.json({
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

@@ -478,3 +478,16 @@ export const filter = async (req, res, next) => {
     next(error);
   }
 };
+
+export const countModels = async (req, res, next) => {
+  try {
+    const count = await prisma.model.count({
+      where: {
+        isActive: true,
+      },
+    });
+    res.json({ data: count });
+  } catch (error) {
+    next(error);
+  }
+};

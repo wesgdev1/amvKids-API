@@ -20,6 +20,10 @@ router.route("/search").get(controller.getAllNamesModelsWithColor);
 
 router.route("/filter").get(controller.filter);
 
+// unitarias
+
+router.route("/count").get(controller.countModels);
+
 router.param("id", controller.id);
 
 router

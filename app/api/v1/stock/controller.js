@@ -93,3 +93,19 @@ export const remove = async (req, res, error) => {
     next(error);
   }
 };
+
+export const countQuantityforTotalStock = async (req, res, next) => {
+  try {
+    const result = await prisma.stock.aggregate({
+      _sum: {
+        quantity: true,
+      },
+    });
+
+    res.json({
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

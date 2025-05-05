@@ -219,3 +219,15 @@ export const myProfile = async (req, res, next) => {
     next(error);
   }
 };
+
+export const countUsers = async (req, res, next) => {
+  try {
+    const count = await prisma.user.count();
+    res.status(200).json({
+      data: count,
+      message: "Count retrieved successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};

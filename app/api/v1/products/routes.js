@@ -7,6 +7,7 @@ import * as controller from "./controller.js";
 import { auth } from "../auth.js";
 
 router.route("/").get(controller.getAll).post(auth, controller.create);
+router.route("/countProducts").get(controller.countProducts);
 
 router.param("id", controller.id);
 

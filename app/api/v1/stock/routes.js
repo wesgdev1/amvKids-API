@@ -7,6 +7,7 @@ import * as controller from "./controller.js";
 import { auth } from "../auth.js";
 
 router.route("/").get(controller.getAll).post(auth, controller.create);
+router.route("/countPairs").get(controller.countQuantityforTotalStock);
 
 router.param("id", controller.id);
 
