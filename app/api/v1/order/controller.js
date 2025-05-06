@@ -920,3 +920,102 @@ export const sumarParesVendidosPorFecha = async (req, res, next) => {
     });
   }
 };
+
+export const modeloMasVendidoPorFecha = async (req, res, next) => {
+  const { body = {} } = req;
+  const { startDate: startDateString, endDate: endDateString } = body;
+
+  try {
+    if (!startDateString || !endDateString) {
+      return next({
+        message: "Los parámetros 'startDate' y 'endDate' son requeridos.",
+        status: 400,
+      });
+    }
+
+    const startDate = new Date(startDateString);
+    const endDate = new Date(endDateString);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return next({
+        message: "Formato de fecha inválido para startDate o endDate.",
+        status: 400,
+      });
+    }
+
+    console.log(
+      `Buscando modelo más vendido: StartDate: ${startDate.toISOString()}, EndDate: ${endDate.toISOString()}`
+    );
+
+    // Agrupar por modelId y sumar las cantidades de OrderItems
+    const groupedItems = await prisma.orderItem.groupBy({
+      by: ["modelId"],
+      _sum: {
+        quantity: true,
+      },
+      where: {
+        Order: {
+          state: "Pedido Entregado",
+          createdAt: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
+        // Asegurarse de que modelId no sea null para evitar errores en el join implícito o en la búsqueda posterior
+        modelId: {
+          not: null,
+        },
+      },
+      orderBy: {
+        _sum: {
+          quantity: "desc", // Ordenar por la suma de cantidad descendente
+        },
+      },
+      take: 1, // Tomar solo el primero (el más vendido)
+    });
+
+    if (groupedItems.length === 0 || !groupedItems[0].modelId) {
+      return res.json({
+        data: null, // O un mensaje como "No se encontraron modelos vendidos en este período"
+        message:
+          "No se encontraron modelos vendidos en el período especificado con estado 'Pedido Entregado'.",
+      });
+    }
+
+    const topModelId = groupedItems[0].modelId;
+    const totalQuantitySold = groupedItems[0]._sum.quantity;
+
+    // Buscar los detalles del modelo más vendido
+    const topModelDetails = await prisma.model.findUnique({
+      where: {
+        id: topModelId,
+      },
+      select: {
+        id: true,
+        name: true,
+        color: true,
+        reference: true,
+        images: {
+          // Opcional: tomar una imagen principal o la primera
+          take: 1,
+          select: {
+            url: true,
+          },
+        },
+      },
+    });
+
+    res.json({
+      data: {
+        ...topModelDetails,
+        totalQuantitySold: totalQuantitySold,
+      },
+    });
+  } catch (error) {
+    console.error("Error en modeloMasVendidoPorFecha:", error);
+    next({
+      message: "Error al obtener el modelo más vendido por fecha.",
+      status: 500,
+    });
+  }
+};
