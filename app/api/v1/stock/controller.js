@@ -1,7 +1,7 @@
 import { prisma } from "../../../database.js";
 
 export const create = async (req, res, next) => {
-  const { body = {}, decoded = {} } = req;
+  const { body = {} } = req;
 
   try {
     const result = await prisma.stock.create({
@@ -62,13 +62,28 @@ export const read = async (req, res, next) => {
 export const update = async (req, res, next) => {
   const { params = {}, body = {} } = req;
   const { id } = params;
+  const { quantity: quantityToAdd, ...restOfBody } = body;
 
   try {
+    const currentStock = await prisma.stock.findUnique({
+      where: { id },
+    });
+
+    if (!currentStock) {
+      return next({ message: "Stock item not found", status: 404 });
+    }
+
+    const newQuantity = currentStock.quantity + (Number(quantityToAdd) || 0);
+
     const result = await prisma.stock.update({
       where: {
         id,
       },
-      data: { ...body, updatedAt: new Date().toISOString() },
+      data: {
+        ...restOfBody,
+        quantity: newQuantity,
+        updatedAt: new Date().toISOString(),
+      },
     });
 
     res.json({ data: result });
