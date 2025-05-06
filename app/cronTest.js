@@ -3,7 +3,7 @@ const runCronJob = async () => {
   try {
     console.log("hola desde a la hora", new Date().toLocaleString());
 
-    console.log("Cron job executed successfully:", result);
+    console.log("Cron job executed successfully:");
   } catch (error) {
     console.error("Error executing cron job:", error);
   }
