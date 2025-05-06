@@ -8,3 +8,5 @@ const runCronJob = async () => {
     console.error("Error executing cron job:", error);
   }
 };
+
+runCronJob();
