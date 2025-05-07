@@ -1019,3 +1019,76 @@ export const modeloMasVendidoPorFecha = async (req, res, next) => {
     });
   }
 };
+
+export const aplicarDescuento = async (req, res, next) => {
+  const { body = {} } = req;
+  const { orderId, porcentajeDescuento } = body; // 'porcentajeDescuento' AHORA es el monto directo a descontar
+
+  try {
+    // Validar que los parámetros necesarios estén presentes
+    if (orderId === undefined || porcentajeDescuento === undefined) {
+      return next({
+        message:
+          "Los parámetros 'orderId' y 'porcentajeDescuento' (monto a descontar) son requeridos.",
+        status: 400,
+      });
+    }
+
+    const montoADescontar = Number(porcentajeDescuento);
+
+    // Validar que 'montoADescontar' sea un número y positivo
+    if (isNaN(montoADescontar) || montoADescontar <= 0) {
+      return next({
+        message:
+          "El 'porcentajeDescuento' (monto a descontar) debe ser un número positivo.",
+        status: 400,
+      });
+    }
+
+    const order = await prisma.order.findUnique({
+      where: {
+        id: orderId,
+      },
+    });
+
+    if (!order) {
+      return next({
+        message: `Orden con id ${orderId} no encontrada.`,
+        status: 404,
+      });
+    }
+
+    // Validar que el monto a descontar no sea mayor que el total de la orden
+    if (montoADescontar > order.total) {
+      return next({
+        message: `El monto a descontar (${montoADescontar}) no puede ser mayor que el total actual de la orden (${order.total}).`,
+        status: 400,
+      });
+    }
+
+    const nuevoTotal = order.total - montoADescontar;
+
+    const updatedOrder = await prisma.order.update({
+      where: {
+        id: orderId,
+      },
+      data: {
+        total: nuevoTotal,
+        discount: montoADescontar, // Guardar el monto del descuento aplicado
+      },
+    });
+
+    res.json({
+      data: updatedOrder,
+      message: `Descuento de ${montoADescontar.toFixed(
+        2
+      )} aplicado correctamente. Nuevo total: ${nuevoTotal.toFixed(2)}.`,
+    });
+  } catch (error) {
+    console.error("Error en aplicarDescuento:", error);
+    next({
+      message: "Error al aplicar el descuento a la orden.",
+      status: 500,
+    });
+  }
+};

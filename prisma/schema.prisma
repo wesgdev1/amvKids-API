@@ -92,6 +92,7 @@ model Order {
   pagoBold      Boolean?    @default(false)
   payment_link  String?
   idTransaction String?
+  discount      Int?
 }
 
 model OrderItem {
