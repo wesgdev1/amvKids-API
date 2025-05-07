@@ -606,6 +606,123 @@ export const updateOrderItem = async (req, res, next) => {
   }
 };
 
+export const updateOrderItemUnity = async (req, res, next) => {
+  const { body } = req;
+  const { orderId, itemId, potentialNewTotal } = body;
+
+  try {
+    if (!orderId || !itemId || potentialNewTotal === undefined) {
+      return next({
+        message:
+          "Los parámetros 'orderId', 'itemId' y 'potentialNewTotal' son requeridos.",
+        status: 400,
+      });
+    }
+
+    if (typeof potentialNewTotal !== "number" || potentialNewTotal < 0) {
+      return next({
+        message: "'potentialNewTotal' debe ser un número no negativo.",
+        status: 400,
+      });
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        orderItems: {
+          where: { id: itemId },
+          include: { model: true },
+        },
+      },
+    });
+
+    if (!order) {
+      return next({
+        message: `Orden con id ${orderId} no encontrada.`,
+        status: 404,
+      });
+    }
+
+    const itemToUpdate = order.orderItems.find((item) => item.id === itemId);
+
+    if (!itemToUpdate) {
+      return next({
+        message: `Ítem con id ${itemId} no encontrado en la orden ${orderId}.`,
+        status: 404,
+      });
+    }
+
+    if (itemToUpdate.quantity <= 0) {
+      return next({
+        message: `El ítem con id ${itemId} ya tiene cantidad 0 o menor, no se puede reducir más.`,
+        status: 400,
+      });
+    }
+
+    await prisma.$transaction(async (transaction) => {
+      // 1. Actualizar el total de la orden
+      await transaction.order.update({
+        where: { id: orderId },
+        data: { total: potentialNewTotal },
+      });
+
+      // 2. Actualizar o eliminar el OrderItem
+      if (itemToUpdate.quantity > 1) {
+        await transaction.orderItem.update({
+          where: { id: itemId },
+          data: { quantity: { decrement: 1 } },
+        });
+      } else {
+        // Si la cantidad es 1, se elimina el item
+        await transaction.orderItem.delete({
+          where: { id: itemId },
+        });
+      }
+
+      // 3. Devolver la unidad al stock
+      const stock = await transaction.stock.findFirst({
+        where: {
+          modelId: itemToUpdate.modelId,
+          size: itemToUpdate.size,
+        },
+      });
+
+      if (!stock) {
+        // Esto no debería pasar si el item existía en la orden, pero es una salvaguarda
+        throw new Error(
+          `Stock no encontrado para el modelo ${
+            itemToUpdate.model?.name || itemToUpdate.modelId
+          } talla ${itemToUpdate.size}. No se pudo devolver la unidad.`
+        );
+      }
+
+      await transaction.stock.update({
+        where: { id: stock.id },
+        data: { quantity: { increment: 1 } },
+      });
+    });
+
+    // Devolver la orden actualizada para confirmación (opcional)
+    const updatedOrder = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        orderItems: {
+          include: { model: true },
+        },
+        user: true,
+      },
+    });
+
+    res.status(200).json({
+      message: `Unidad del ítem ${itemId} actualizada/eliminada correctamente.`,
+      data: updatedOrder,
+    });
+  } catch (error) {
+    console.error("Error en updateOrderItemUnity:", error);
+    next(error); // Pasa el error al manejador de errores global
+  }
+};
+
 export const crearLinkDePago = async (req, res) => {
   try {
     const { total, descripcion, email, orderId } = req.body;

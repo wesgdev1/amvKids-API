@@ -17,6 +17,7 @@ router.route("/search/:searchTerm").get(controller.search);
 router.route("/curvas").get(controller.getAllCurvas);
 router.route("/recommended").get(controller.getRecommended);
 router.route("/search").get(controller.getAllNamesModelsWithColor);
+router.route("/search/:searchTerm/filter").get(controller.searchWithFilter);
 
 router.route("/filter").get(controller.filter);
 

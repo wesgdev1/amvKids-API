@@ -370,6 +370,138 @@ export const search = async (req, res, next) => {
   }
 };
 
+export const searchWithFilter = async (req, res, next) => {
+  const { params } = req;
+  const { searchTerm } = params;
+  console.log("Ingreso por la ruta de busqueda con filtro");
+  console.log(searchTerm);
+  console.log(req.query);
+
+  // separo los terminos por espacio
+  const terms = searchTerm.split(" ");
+
+  const { filtersSize, filtersGenre, filtersBrand, filtersColor } = req.query;
+
+  const sizes = filtersSize
+    ? filtersSize
+        .split("-")
+        .map(Number)
+        .filter((n) => !isNaN(n))
+    : [];
+  const colors = filtersColor ? filtersColor.split("-") : [];
+  const brands = filtersBrand ? filtersBrand.split("-") : [];
+  const genres = filtersGenre ? filtersGenre.split("-") : [];
+
+  console.log(sizes);
+  console.log(colors);
+  console.log(brands);
+  console.log(genres);
+
+  try {
+    const whereClause = {
+      AND: [],
+    };
+
+    // Agregar condiciones de búsqueda por términos
+    if (terms.length > 0) {
+      whereClause.AND.push({
+        AND: terms.map((term) => ({
+          OR: [
+            { name: { contains: term, mode: "insensitive" } },
+            { color: { contains: term, mode: "insensitive" } },
+          ],
+        })),
+      });
+    }
+
+    if (colors.length > 0) {
+      whereClause.AND.push({
+        color: {
+          in: colors,
+          mode: "insensitive",
+        },
+      });
+    }
+
+    if (brands.length > 0) {
+      whereClause.AND.push({
+        product: {
+          name: {
+            in: brands,
+            mode: "insensitive",
+          },
+        },
+      });
+    }
+
+    if (sizes.length > 0) {
+      whereClause.AND.push({
+        stocks: {
+          some: {
+            AND: [
+              {
+                size: {
+                  in: sizes,
+                },
+              },
+              {
+                quantity: {
+                  gt: 0,
+                },
+              },
+            ],
+          },
+        },
+      });
+    }
+
+    if (genres.length > 0) {
+      const genreConditions = genres
+        .map((genre) => {
+          if (genre === "Hombre" || genre === "Mujer") {
+            return { stocks: { some: { size: { gte: 34 } } } }; // Adultos (>=34)
+          } else if (genre === "Niño" || genre === "Niña") {
+            return { stocks: { some: { size: { lt: 34 } } } }; // Niños (<34)
+          }
+          return null;
+        })
+        .filter(Boolean);
+
+      if (genreConditions.length > 0) {
+        whereClause.AND.push({ OR: genreConditions });
+      }
+    }
+    const result = await prisma.model.findMany({
+      where: whereClause,
+      orderBy: {
+        createdAt: "desc",
+      },
+      include: {
+        stocks: true,
+        images: true,
+        product: true,
+      },
+    });
+
+    const resultWithTotalStocks = result.map((item) => {
+      const totalStocks = item.stocks.reduce(
+        (acc, stock) => acc + stock.quantity,
+        0
+      );
+      return {
+        ...item,
+        totalStocks, // Agregar la suma total de stocks como una nueva propiedad
+      };
+    });
+
+    res.json({
+      data: resultWithTotalStocks,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const filter = async (req, res, next) => {
   console.log(" Ingreso por la ruta del filtro");
 
