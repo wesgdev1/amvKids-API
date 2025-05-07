@@ -11,6 +11,7 @@ router.route("/").get(auth, controller.getAll).post(auth, controller.create);
 router.route("/preparer").get(auth, controller.getAllPreparer);
 router.route("/myOrders").get(auth, controller.getMyOrders);
 router.route("/deleteItems").put(auth, controller.updateOrderItem);
+router.route("/deleteItemsUnity").put(auth, controller.updateOrderItemUnity);
 router.route("/applyDiscount").put(auth, controller.aplicarDescuento);
 router.route("/ordersByUser/:userId").get(auth, controller.getOrderByUser);
 router.route("/pagos").post(controller.crearLinkDePago);
