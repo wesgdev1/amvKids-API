@@ -29,6 +29,17 @@ const runCronJob = async () => {
             },
           });
 
+          await transaction.user.update({
+            where: {
+              id: order.userId,
+            },
+            data: {
+              numeroMultas: {
+                increment: 1,
+              },
+            },
+          });
+
           await transaction.order.delete({
             where: {
               id: order.id,
