@@ -52,6 +52,9 @@ model Model {
   images        Image[]
   isActive      Boolean?    @default(true)
   isRecommended Boolean?    @default(false)
+  basePrice     Int?        @default(0) //Precio base de la prenda
+  isPromoted    Boolean?    @default(false)
+  pricePromoted Int?        @default(0) //Precio de la prenda en promocion  
 }
 
 model Image {

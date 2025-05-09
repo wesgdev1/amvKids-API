@@ -44,8 +44,12 @@ export const id = async (req, res, next) => {
       where: {
         id: params.id,
       },
+
       include: {
         models: {
+          orderBy: {
+            createdAt: "desc",
+          },
           include: {
             stocks: true,
             images: true,

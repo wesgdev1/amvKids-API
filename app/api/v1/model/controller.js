@@ -7,9 +7,11 @@ export const create = async (req, res, next) => {
   const newBody = {
     ...body,
     price: parseInt(body.price),
+    basePrice: parseInt(body.basePrice),
     normalPrice: parseInt(body.normalPrice),
     alliancePrice: parseInt(body.alliancePrice),
     reference: parseInt(body.reference),
+    isPromoted: body.isPromoted === "true" ? true : false,
   };
 
   const files = req.files;
@@ -48,6 +50,9 @@ export const update = async (req, res, next) => {
     normalPrice: parseInt(body.normalPrice),
     alliancePrice: parseInt(body.alliancePrice),
     reference: parseInt(body.reference),
+    basePrice: parseInt(body.basePrice),
+    isPromoted: body.isPromoted === "true" ? true : false,
+    pricePromoted: parseInt(body.pricePromoted),
   };
   console.log(newBody);
 
