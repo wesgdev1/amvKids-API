@@ -25,6 +25,8 @@ router
   .route("/sumarParesVendidosPorFecha")
   .post(controller.sumarParesVendidosPorFecha);
 
+router.route("/calcularUtilidad").post(controller.calcularUtilidad);
+
 router.route("/modeloMasVendido").post(controller.modeloMasVendidoPorFecha);
 
 router.param("id", controller.id);

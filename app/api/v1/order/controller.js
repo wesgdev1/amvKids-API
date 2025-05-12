@@ -895,6 +895,9 @@ export const countOrderByDate = async (req, res, next) => {
     // Contar las órdenes en el rango calculado
     const result = await prisma.order.count({
       where: {
+        state: {
+          in: ["Pedido Entregado", "Pago Confirmado"],
+        },
         createdAt: {
           gte: startDate, // Mayor o igual que startDate
           lte: endDate, // Menor o igual que endDate
@@ -951,7 +954,9 @@ export const sumarTotalOrdenesByDate = async (req, res, next) => {
         total: true, // Sumar el campo 'total'
       },
       where: {
-        state: "Pedido Entregado", // Filtrar por estado específico
+        state: {
+          in: ["Pedido Entregado", "Pago Confirmado"],
+        },
         createdAt: {
           gte: startDate, // Mayor o igual que startDate
           lte: endDate, // Menor o igual que endDate
@@ -1017,7 +1022,9 @@ export const sumarParesVendidosPorFecha = async (req, res, next) => {
       where: {
         // Filtrar basado en la orden relacionada
         Order: {
-          state: "Pedido Entregado", // Filtrar por estado de la orden
+          state: {
+            in: ["Pedido Entregado", "Pago Confirmado"],
+          },
           createdAt: {
             gte: startDate, // Mayor o igual que startDate
             lte: endDate, // Menor o igual que endDate
@@ -1079,7 +1086,9 @@ export const modeloMasVendidoPorFecha = async (req, res, next) => {
       },
       where: {
         Order: {
-          state: "Pedido Entregado",
+          state: {
+            in: ["Pedido Entregado", "Pago Confirmado"],
+          },
           createdAt: {
             gte: startDate,
             lte: endDate,
@@ -1212,6 +1221,153 @@ export const aplicarDescuento = async (req, res, next) => {
     console.error("Error en aplicarDescuento:", error);
     next({
       message: "Error al aplicar el descuento a la orden.",
+      status: 500,
+    });
+  }
+};
+
+export const calcularUtilidad = async (req, res, next) => {
+  const { body = {} } = req;
+  const { startDate: startDateString, endDate: endDateString } = body;
+
+  try {
+    // --- Validación de Fechas ---
+    if (!startDateString || !endDateString) {
+      return next({
+        message: "Los parámetros 'startDate' y 'endDate' son requeridos.",
+        status: 400,
+      });
+    }
+    const startDate = new Date(startDateString);
+    const endDate = new Date(endDateString);
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return next({
+        message: "Formato de fecha inválido para startDate o endDate.",
+        status: 400,
+      });
+    }
+    console.log(
+      `Calculando utilidad: StartDate: ${startDate.toISOString()}, EndDate: ${endDate.toISOString()}`
+    );
+
+    // --- Obtener Órdenes Relevantes ---
+    const ordenes = await prisma.order.findMany({
+      where: {
+        state: {
+          in: ["Pedido Entregado", "Pago Confirmado"],
+        },
+        createdAt: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      include: {
+        user: {
+          // Incluir usuario para obtener tipoUsuario
+          select: { tipoUsuario: true },
+        },
+        orderItems: {
+          // Incluir items de la orden
+          include: {
+            model: true, // Incluir modelo para acceder a precios/basePrice si es necesario
+          },
+        },
+      },
+    });
+
+    let utilidadBrutaTotal = 0;
+    let totalDescuentosAplicados = 0;
+    let itemsProcesados = 0;
+
+    // --- Calcular Utilidad por Item y Sumar Descuentos ---
+    for (const order of ordenes) {
+      totalDescuentosAplicados += order.discount || 0; // Sumar descuento de la orden si existe
+
+      for (const orderItem of order.orderItems) {
+        itemsProcesados++;
+        let utilidadItem = 0;
+        // Determinar el precio base (prioridad: item, luego modelo, default 0)
+        const basePriceItem =
+          orderItem.basePrice ?? orderItem.model?.basePrice ?? 0;
+        let precioVenta = null;
+
+        // Caso 1: Item en promoción
+        if (orderItem.isPromoted === true) {
+          precioVenta = orderItem.pricePromoted ?? 0; // Usar precio promocional (default 0 si es null)
+        }
+        // Caso 2: Precio específico en el item (y no en promoción)
+        else if (orderItem.price !== null) {
+          precioVenta = orderItem.price;
+        }
+        // Caso 3: Precio basado en tipo de usuario y modelo (si no hay precio específico en item y no está en promo)
+        else {
+          const tipoUsuario = order.user?.tipoUsuario;
+          const model = orderItem.model;
+          if (model) {
+            // Asegurarse que el modelo está cargado
+            switch (tipoUsuario) {
+              case "Cliente":
+                precioVenta = model.normalPrice;
+                break;
+              case "Reventa":
+                precioVenta = model.price;
+                break;
+              case "Tienda Aliada":
+                precioVenta = model.alliancePrice;
+                break;
+              default:
+                // Si tipoUsuario es null o no coincide, no se puede determinar el precio
+                console.warn(
+                  `No se pudo determinar precio de venta para item ${orderItem.id} (Tipo Usuario: ${tipoUsuario})`
+                );
+                precioVenta = null;
+            }
+            if (precioVenta === null && tipoUsuario) {
+              console.warn(
+                `El precio correspondiente (${tipoUsuario}) en el modelo ${model.id} es null.`
+              );
+            }
+          } else {
+            console.warn(`Modelo no encontrado para orderItem ${orderItem.id}`);
+            precioVenta = null;
+          }
+        }
+
+        // Calcular utilidad solo si se determinó un precio de venta
+        if (precioVenta !== null) {
+          utilidadItem = precioVenta - basePriceItem;
+        } else {
+          console.warn(
+            `Precio de venta final es null para item ${orderItem.id}, utilidad considerada 0.`
+          );
+          utilidadItem = 0; // No se pudo calcular, utilidad es 0 para este item
+        }
+
+        utilidadBrutaTotal += utilidadItem * orderItem.quantity; // Multiplicar por la cantidad del item
+      }
+    }
+
+    // --- Calcular Utilidad Neta ---
+    const utilidadNetaTotal = utilidadBrutaTotal - totalDescuentosAplicados;
+
+    // --- Devolver Resultado ---
+    res.json({
+      data: {
+        utilidadNetaTotal,
+        utilidadBrutaTotal,
+        totalDescuentosAplicados,
+        ordenesConsideradas: ordenes.length,
+        itemsProcesados,
+        rangoFechas: {
+          inicio: startDate.toISOString(),
+          fin: endDate.toISOString(),
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error en calcularUtilidad:", error);
+    next({
+      message: "Error al calcular la utilidad por fecha.",
       status: 500,
     });
   }
