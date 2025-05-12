@@ -99,13 +99,19 @@ model Order {
 }
 
 model OrderItem {
-  id        String    @id @default(uuid()) @db.Uuid
-  quantity  Int
-  size      Int
-  createdAt DateTime  @default(now())
-  updatedAt DateTime? @updatedAt
-  Order     Order?    @relation(fields: [orderId], references: [id])
-  orderId   String?   @db.Uuid
-  model     Model?    @relation(fields: [modelId], references: [id])
-  modelId   String?   @db.Uuid
+  id            String    @id @default(uuid()) @db.Uuid
+  quantity      Int
+  size          Int
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime? @updatedAt
+  Order         Order?    @relation(fields: [orderId], references: [id])
+  orderId       String?   @db.Uuid
+  model         Model?    @relation(fields: [modelId], references: [id])
+  modelId       String?   @db.Uuid
+  isPromoted    Boolean?  @default(false)
+  price         Int? //Precio de reventa
+  normalPrice   Int? //Precio normal user whatsapp o final
+  alliancePrice Int? //Precio para tiendas aliadas
+  basePrice     Int? //Precio base de la prenda
+  pricePromoted Int? //Precio de la prenda en promocion  
 }

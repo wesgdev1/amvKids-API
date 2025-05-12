@@ -197,6 +197,13 @@ export const create = async (req, res, next) => {
               orderId: order.id,
               size: item.size,
               quantity: item.quantity,
+              //
+              price: item.price, // Asumiendo que 'price' es un campo en el item
+              normalPrice: item.normalPrice, // Asumiendo que 'normalPrice' es un campo en el item
+              alliancePrice: item.alliancePrice, // Asumiendo que 'alliancePrice' es un campo en el item
+              basePrice: item.basePrice, // Asumiendo que 'basePrice' es un campo en el item
+              isPromoted: item.isPromoted, // Asumiendo que 'isPromoted' es un campo en el item
+              pricePromoted: item.pricePromoted, // Asumiendo que 'pricePromoted' es un campo en el item
             });
           }
         }
