@@ -20,10 +20,7 @@ export const loginUser = async (email, password) => {
   try {
     const user = prisma.user.findUnique({
       where: {
-        email: {
-          equals: email,
-          mode: "insensitive",
-        },
+        email,
       },
     });
 
