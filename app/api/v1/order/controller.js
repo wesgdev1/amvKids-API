@@ -316,7 +316,12 @@ export const getAllPreparer = async (req, res, next) => {
   try {
     const result = await prisma.order.findMany({
       where: {
-        areReady: false,
+        // areReady: false,
+        NOT: {
+          state: {
+            in: ["Pedido Entregado", "Pago Confirmado", "Pago Enviado"],
+          },
+        },
       },
       include: {
         user: true,
