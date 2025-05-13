@@ -1,12 +1,16 @@
+import e from "express";
 import { prisma } from "../../../database.js";
 import { verifyPassword } from "./model.js";
 
 export const createUser = async (body, password) => {
+  // vuelvo minuscula el email
+
   try {
     const user = prisma.user.create({
       data: {
         ...body,
         password,
+        email: body.email.toLowerCase(),
       },
     });
 
@@ -20,7 +24,7 @@ export const loginUser = async (email, password) => {
   try {
     const user = prisma.user.findUnique({
       where: {
-        email,
+        email: email.toLowerCase(),
       },
     });
 
