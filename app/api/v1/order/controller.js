@@ -319,7 +319,7 @@ export const getAllPreparer = async (req, res, next) => {
         // areReady: false,
         NOT: {
           state: {
-            in: ["Pedido Entregado", "Pago Confirmado", "Pago Enviado"],
+            in: ["Pedido Entregado"],
           },
         },
       },
