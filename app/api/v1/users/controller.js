@@ -5,6 +5,7 @@ import {
   mensajeCliente,
   transporter,
   welcomeMessageClient,
+  welcomeMessage,
 } from "../mailer.js";
 import { encryptPassword, verifyPassword } from "./model.js";
 import { createUser, getAllUsers, loginUser } from "./services.js";
