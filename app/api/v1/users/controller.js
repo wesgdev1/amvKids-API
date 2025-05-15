@@ -201,6 +201,8 @@ export const updatePhoto = async (req, res, next) => {
 };
 
 export const myProfile = async (req, res, next) => {
+  console.log(req.body);
+  console.log(req.body.id);
   const { id } = req.body;
   try {
     const user = await prisma.user.findUnique({
@@ -211,6 +213,8 @@ export const myProfile = async (req, res, next) => {
     if (!user) {
       return next({ message: "User not found", status: 404 });
     }
+    // elimino la contraseña en la respuesta
+    delete user.password;
     res.status(200).json({
       data: user,
       message: "User retrieved successfully",

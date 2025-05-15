@@ -637,3 +637,43 @@ export const countModels = async (req, res, next) => {
     next(error);
   }
 };
+
+export const modelInfo = async (req, res, next) => {
+  const { params = {} } = req;
+  console.log("ando por aqui sin auth");
+
+  try {
+    const result = await prisma.model.findUnique({
+      where: {
+        id: params.id,
+      },
+
+      include: {
+        stocks: {
+          orderBy: {
+            size: "asc",
+          },
+        },
+        images: true,
+      },
+    });
+
+    const resultWithTotalStocks = {
+      ...result,
+      totalStocks: result.stocks.reduce(
+        (acc, stock) => acc + stock.quantity,
+        0
+      ),
+    };
+
+    if (result === null) {
+      next({ message: "Model not found", status: 404 });
+    } else {
+      req.data = resultWithTotalStocks;
+
+      res.json({ data: req.data });
+    }
+  } catch (error) {
+    next(error);
+  }
+};

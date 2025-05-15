@@ -24,6 +24,7 @@ router.route("/filter").get(controller.filter);
 // unitarias
 
 router.route("/count").get(controller.countModels);
+router.route("/modelInfo/:id").get(controller.modelInfo);
 
 router.param("id", controller.id);
 

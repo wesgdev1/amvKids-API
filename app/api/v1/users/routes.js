@@ -19,7 +19,7 @@ router.route("/signin").post(controller.signin);
 router.route("/create").post(auth, controller.createUsers);
 router.route("/auth/change-password").put(auth, controller.changePassword);
 router.route("/getAll").get(auth, controller.getAll);
-router.route("/myProfile").get(auth, controller.myProfile);
+router.route("/myProfile").post(auth, controller.myProfile);
 router.route("/countUser").get(auth, controller.countUsers);
 
 router.param("id", controller.id);
