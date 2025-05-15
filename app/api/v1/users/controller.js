@@ -1,7 +1,11 @@
 import { prisma } from "../../../database.js";
 import { uploadFiles } from "../../../uploadPhotos/uploads.js";
 import { signToken } from "../auth.js";
-import { mensajeCliente, transporter, welcomeMessage } from "../mailer.js";
+import {
+  mensajeCliente,
+  transporter,
+  welcomeMessageClient,
+} from "../mailer.js";
 import { encryptPassword, verifyPassword } from "./model.js";
 import { createUser, getAllUsers, loginUser } from "./services.js";
 import fs from "fs";
@@ -12,6 +16,9 @@ export const signup = async (req, res, next) => {
     const password = await encryptPassword(req.body.password);
 
     const user = await createUser(body, password);
+
+    const mensaje = welcomeMessageClient(user);
+    await transporter.sendMail(mensaje);
     res.status(201).json({
       data: user,
       message: "User created successfully",
