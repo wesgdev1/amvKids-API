@@ -385,7 +385,13 @@ export const searchWithFilter = async (req, res, next) => {
   // separo los terminos por espacio
   const terms = searchTerm.split(" ");
 
-  const { filtersSize, filtersGenre, filtersBrand, filtersColor } = req.query;
+  const {
+    filtersSize,
+    filtersGenre,
+    filtersBrand,
+    filtersColor,
+    filtersPromo,
+  } = req.query;
 
   const sizes = filtersSize
     ? filtersSize
@@ -396,18 +402,26 @@ export const searchWithFilter = async (req, res, next) => {
   const colors = filtersColor ? filtersColor.split("-") : [];
   const brands = filtersBrand ? filtersBrand.split("-") : [];
   const genres = filtersGenre ? filtersGenre.split("-") : [];
+  const promo = filtersPromo ? filtersPromo.split("-") : [];
 
   console.log(sizes);
   console.log(colors);
   console.log(brands);
   console.log(genres);
-
+  console.log(promo);
   try {
     const whereClause = {
       AND: [],
     };
 
     // Agregar condiciones de búsqueda por términos
+
+    if (promo.length > 0) {
+      whereClause.AND.push({
+        isPromoted: true,
+      });
+    }
+
     if (terms.length > 0) {
       whereClause.AND.push({
         AND: terms.map((term) => ({
@@ -510,12 +524,19 @@ export const searchWithFilter = async (req, res, next) => {
 export const filter = async (req, res, next) => {
   console.log(" Ingreso por la ruta del filtro");
 
-  const { filtersSize, filtersGenre, filtersBrand, filtersColor } = req.query;
+  const {
+    filtersSize,
+    filtersGenre,
+    filtersBrand,
+    filtersColor,
+    filtersPromo,
+  } = req.query;
 
   console.log(filtersBrand);
   console.log(filtersColor);
   console.log(filtersSize);
   console.log(filtersGenre);
+  console.log(filtersPromo);
 
   const sizes = filtersSize
     ? filtersSize
@@ -526,16 +547,24 @@ export const filter = async (req, res, next) => {
   const colors = filtersColor ? filtersColor.split("-") : [];
   const brands = filtersBrand ? filtersBrand.split("-") : [];
   const genres = filtersGenre ? filtersGenre.split("-") : [];
+  const promo = filtersPromo ? filtersPromo.split("-") : [];
 
   console.log(sizes);
   console.log(colors);
   console.log(brands);
   console.log(genres);
+  console.log(promo);
 
   try {
     const whereClause = {
       AND: [],
     };
+
+    if (promo.length > 0) {
+      whereClause.AND.push({
+        isPromoted: true,
+      });
+    }
 
     if (colors.length > 0) {
       whereClause.AND.push({

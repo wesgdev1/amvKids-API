@@ -806,13 +806,38 @@ export const webhook = async (req, res) => {
     const paymentLink = evento.data?.metadata?.reference;
     const idTransaction = evento.data?.payment_id;
 
-    // if (!paymentLink) {
-    //   console.error("No se encontró el payment_link en el evento:", evento);
-    //   return res.status(400).send("payment_link no encontrado en el evento");
-    // }
+    // Validar que paymentLink no sea null o undefined
+    if (!paymentLink) {
+      console.error(
+        "❌ Error: paymentLink es null o undefined en el evento:",
+        evento
+      );
+      return res.status(400).json({
+        error: "paymentLink es requerido para procesar el webhook",
+        evento: evento,
+      });
+    }
 
     if (tipo === "SALE_APPROVED") {
       console.log("✅ Pago aprobado para orden:", paymentLink);
+
+      // Verificar si existe una orden con ese payment_link antes de actualizar
+      const ordenExistente = await prisma.order.findFirst({
+        where: {
+          payment_link: paymentLink,
+        },
+      });
+
+      if (!ordenExistente) {
+        console.error(
+          `❌ No se encontró orden con payment_link: ${paymentLink}`
+        );
+        return res.status(404).json({
+          error: "No se encontró orden con el payment_link proporcionado",
+          paymentLink,
+        });
+      }
+
       // Actualiza en tu base de datos como PAGADA
       await prisma.order.updateMany({
         where: {
@@ -824,42 +849,18 @@ export const webhook = async (req, res) => {
           idTransaction: idTransaction,
         },
       });
-      //
     }
 
     if (tipo === "SALE_REJECTED") {
-      console.log("❌ Pago rechazado para orden:", orderId);
+      console.log("❌ Pago rechazado para orden:", paymentLink);
       // await marcarComoRechazada(orderId);
     }
 
     if (tipo === "VOID_APPROVED") {
-      console.log("🛑 Pago anulado para orden:", orderId);
+      console.log("🛑 Pago anulado para orden:", paymentLink);
     }
 
     res.status(200).send("OK");
-    // const { status, description } = req.body;
-    // console.log("Webhook Bold:", req.body); // Log para depuración
-
-    // if (status === "PAID" && description) {
-    //   const codigoOrder = description.match(/\d+/)?.[0]; // Extrae número de orden
-    //   console.log("Código de orden extraído:", codigoOrder); // Log para depuración
-
-    //   if (codigoOrder) {
-    //     await prisma.order.updateMany({
-    //       where: {
-    //         codigoOrder,
-    //       },
-    //       data: {
-    //         pagoBold: true,
-    //         state: "Pago Enviado",
-    //       },
-    //     });
-    //     const idOrden = codigoOrder; // Asignar el ID de la orden a una variable
-    //     console.log(`Orden #${idOrden} marcada como pagada`);
-    //   }
-    // }
-
-    // res.sendStatus(200);
   } catch (err) {
     console.error("Error en webhook Bold:", err);
     res.sendStatus(500);
