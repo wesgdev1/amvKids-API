@@ -1378,3 +1378,171 @@ export const calcularUtilidad = async (req, res, next) => {
     });
   }
 };
+
+export const calcularUtilidadGraficos = async (req, res, next) => {
+  const { body = {} } = req;
+  const { startDate: startDateString, endDate: endDateString } = body;
+
+  try {
+    // --- Validación de Fechas ---
+    if (!startDateString || !endDateString) {
+      return next({
+        message: "Los parámetros 'startDate' y 'endDate' son requeridos.",
+        status: 400,
+      });
+    }
+    const startDate = new Date(startDateString);
+    const endDate = new Date(endDateString);
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return next({
+        message: "Formato de fecha inválido para startDate o endDate.",
+        status: 400,
+      });
+    }
+    console.log(
+      `Calculando utilidad por día: StartDate: ${startDate.toISOString()}, EndDate: ${endDate.toISOString()}`
+    );
+
+    // --- Obtener Órdenes Relevantes ---
+    const ordenes = await prisma.order.findMany({
+      where: {
+        state: {
+          in: ["Pedido Entregado", "Pago Confirmado"],
+        },
+        createdAt: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      include: {
+        user: {
+          select: { tipoUsuario: true },
+        },
+        orderItems: {
+          include: {
+            model: true,
+          },
+        },
+      },
+    });
+
+    // Crear un mapa para almacenar las utilidades por día
+    const utilidadesPorDia = new Map();
+
+    // --- Calcular Utilidad por Item y por Día ---
+    for (const order of ordenes) {
+      const fechaOrden = new Date(order.createdAt);
+      const fechaKey = fechaOrden.toISOString().split("T")[0]; // Formato YYYY-MM-DD
+
+      // Inicializar el objeto para este día si no existe
+      if (!utilidadesPorDia.has(fechaKey)) {
+        utilidadesPorDia.set(fechaKey, {
+          utilidadBruta: 0,
+          utilidadNeta: 0,
+          descuentos: 0,
+          cantidadOrdenes: 0,
+          cantidadItems: 0,
+        });
+      }
+
+      const datosDia = utilidadesPorDia.get(fechaKey);
+      datosDia.cantidadOrdenes++;
+      datosDia.descuentos += order.discount || 0;
+
+      for (const orderItem of order.orderItems) {
+        datosDia.cantidadItems++;
+        let utilidadItem = 0;
+        const basePriceItem =
+          orderItem.basePrice ?? orderItem.model?.basePrice ?? 0;
+        let precioVenta = null;
+
+        // Caso 1: Item en promoción
+        if (orderItem.isPromoted === true) {
+          precioVenta = orderItem.pricePromoted ?? 0;
+        }
+        // Caso 2: Precio específico en el item
+        else if (orderItem.price !== null) {
+          precioVenta = orderItem.price;
+        }
+        // Caso 3: Precio basado en tipo de usuario y modelo
+        else {
+          const tipoUsuario = order.user?.tipoUsuario;
+          const model = orderItem.model;
+          if (model) {
+            switch (tipoUsuario) {
+              case "Cliente":
+                precioVenta = model.normalPrice;
+                break;
+              case "Reventa":
+                precioVenta = model.price;
+                break;
+              case "Tienda Aliada":
+                precioVenta = model.alliancePrice;
+                break;
+              default:
+                console.warn(
+                  `No se pudo determinar precio de venta para item ${orderItem.id} (Tipo Usuario: ${tipoUsuario})`
+                );
+                precioVenta = null;
+            }
+          }
+        }
+
+        if (precioVenta !== null) {
+          utilidadItem = precioVenta - basePriceItem;
+          datosDia.utilidadBruta += utilidadItem * orderItem.quantity;
+        }
+      }
+
+      // Calcular utilidad neta para este día
+      datosDia.utilidadNeta = datosDia.utilidadBruta - datosDia.descuentos;
+    }
+
+    // Convertir el Map a un array de objetos ordenado por fecha
+    const utilidadesArray = Array.from(utilidadesPorDia.entries())
+      .map(([fecha, datos]) => ({
+        fecha,
+        ...datos,
+      }))
+      .sort((a, b) => a.fecha.localeCompare(b.fecha));
+
+    // --- Devolver Resultado ---
+    res.json({
+      data: {
+        utilidadesPorDia: utilidadesArray,
+        resumen: {
+          totalUtilidadBruta: utilidadesArray.reduce(
+            (sum, dia) => sum + dia.utilidadBruta,
+            0
+          ),
+          totalUtilidadNeta: utilidadesArray.reduce(
+            (sum, dia) => sum + dia.utilidadNeta,
+            0
+          ),
+          totalDescuentos: utilidadesArray.reduce(
+            (sum, dia) => sum + dia.descuentos,
+            0
+          ),
+          totalOrdenes: utilidadesArray.reduce(
+            (sum, dia) => sum + dia.cantidadOrdenes,
+            0
+          ),
+          totalItems: utilidadesArray.reduce(
+            (sum, dia) => sum + dia.cantidadItems,
+            0
+          ),
+        },
+        rangoFechas: {
+          inicio: startDate.toISOString(),
+          fin: endDate.toISOString(),
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error en calcularUtilidadGraficos:", error);
+    next({
+      message: "Error al calcular la utilidad por día.",
+      status: 500,
+    });
+  }
+};

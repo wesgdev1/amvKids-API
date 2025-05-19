@@ -21,6 +21,8 @@ router
   .route("/sumarTotalOrdenesByDate")
   .post(controller.sumarTotalOrdenesByDate);
 
+router.route("/graficos").post(controller.calcularUtilidadGraficos);
+
 router
   .route("/sumarParesVendidosPorFecha")
   .post(controller.sumarParesVendidosPorFecha);
