@@ -29,7 +29,15 @@ function parseDetalleCurva(detalle) {
 export const create = async (req, res, next) => {
   const { body = {}, decoded = {} } = req;
   const { id: userId } = decoded;
-  const { items = [], total, state, comments } = body; // 'total' se usará solo para órdenes normales
+  const {
+    items = [],
+    total,
+    state,
+    comments,
+    formaOrder,
+    directionOrder,
+    costoEnvio,
+  } = body; // 'total' se usará solo para órdenes normales
 
   // Detectar si es una orden de curva basado en la estructura del primer item
   const isCurveOrder = items.length > 0 && items[0].detalleCurva !== undefined;
@@ -164,6 +172,10 @@ export const create = async (req, res, next) => {
           total: calculatedTotal,
           state: state || "Creada",
           comments: comments,
+          formaOrder: formaOrder || "Sin Especificar",
+          directionOrder: directionOrder || "Sin Especificar",
+          costoEnvio: costoEnvio || 0, // Asignar costoEnvio si se proporciona
+
           userId,
           typeOrder: orderType,
         },

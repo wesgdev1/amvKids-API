@@ -11,19 +11,33 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(uuid()) @db.Uuid
+  id           String      @id @default(uuid()) @db.Uuid
   celular      String?
-  email        String    @unique
+  email        String      @unique
   tipoUsuario  String?
   password     String
   urlFoto      String?
   name         String
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime? @updatedAt
-  codigo       Int?      @default(autoincrement())
-  numeroMultas Int?      @default(0)
-  state        Boolean?  @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime?   @updatedAt
+  codigo       Int?        @default(autoincrement())
+  numeroMultas Int?        @default(0)
+  state        Boolean?    @default(true)
   Order        Order[]
+  directions   Direction[]
+}
+
+model Direction {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String? // lo usare como un tipo
+  address   String
+  city      String
+  state     String
+  zipCode   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+  user      User?     @relation(fields: [userId], references: [id])
+  userId    String?   @db.Uuid
 }
 
 model Product {
@@ -79,23 +93,26 @@ model Stock {
 }
 
 model Order {
-  id            String      @id @default(uuid()) @db.Uuid
-  codigoOrder   Int?        @default(autoincrement())
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime?   @updatedAt
-  user          User?       @relation(fields: [userId], references: [id])
-  userId        String?     @db.Uuid
-  orderItems    OrderItem[]
-  total         Int?
-  state         String?     @default("Creada") // Creada, Pago Enviado, Pago Confirmado ,Alistada,Pedido Entregado, CanceladaAdmin
-  comments      String?
-  paymentUrl    String?
-  areReady      Boolean?    @default(false)
-  typeOrder     String?     @default("Normal") // Normal, Curva
-  pagoBold      Boolean?    @default(false)
-  payment_link  String?
-  idTransaction String?
-  discount      Int?
+  id             String      @id @default(uuid()) @db.Uuid
+  codigoOrder    Int?        @default(autoincrement())
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime?   @updatedAt
+  user           User?       @relation(fields: [userId], references: [id])
+  userId         String?     @db.Uuid
+  orderItems     OrderItem[]
+  total          Int?
+  state          String?     @default("Creada") // Creada, Pago Enviado, Pago Confirmado ,Alistada,Pedido Entregado, CanceladaAdmin
+  comments       String?
+  paymentUrl     String?
+  areReady       Boolean?    @default(false)
+  typeOrder      String?     @default("Normal") // Normal, Curva
+  pagoBold       Boolean?    @default(false)
+  payment_link   String?
+  idTransaction  String?
+  discount       Int?
+  formaOrder     String?
+  directionOrder String?
+  costoEnvio     Int? //Costo de envio
 }
 
 model OrderItem {

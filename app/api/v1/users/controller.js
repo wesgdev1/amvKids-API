@@ -8,7 +8,12 @@ import {
   welcomeMessage,
 } from "../mailer.js";
 import { encryptPassword, verifyPassword } from "./model.js";
-import { createUser, getAllUsers, loginUser } from "./services.js";
+import {
+  createUser,
+  createUserClient,
+  getAllUsers,
+  loginUser,
+} from "./services.js";
 import fs from "fs";
 
 export const signup = async (req, res, next) => {
@@ -16,7 +21,7 @@ export const signup = async (req, res, next) => {
   try {
     const password = await encryptPassword(req.body.password);
 
-    const user = await createUser(body, password);
+    const user = await createUserClient(body, password);
 
     const mensaje = welcomeMessageClient(user);
     await transporter.sendMail(mensaje);
