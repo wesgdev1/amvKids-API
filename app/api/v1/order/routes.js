@@ -8,6 +8,7 @@ import { auth } from "../auth.js";
 import { uploads } from "../../../uploadPhotos/uploads.js";
 
 router.route("/").get(auth, controller.getAll).post(auth, controller.create);
+router.route("/search").post(auth, controller.search);
 router.route("/preparer").get(auth, controller.getAllPreparer);
 router.route("/myOrders").get(auth, controller.getMyOrders);
 router.route("/deleteItems").put(auth, controller.updateOrderItem);

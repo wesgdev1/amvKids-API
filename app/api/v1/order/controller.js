@@ -1558,3 +1558,81 @@ export const calcularUtilidadGraficos = async (req, res, next) => {
     });
   }
 };
+
+export const search = async (req, res, next) => {
+  const { body = {} } = req;
+  const { name, color, size } = body;
+  console.log(name, color, size);
+
+  try {
+    // Construir el filtro where dinámicamente
+    const whereCondition = {
+      orderItems: {
+        some: {
+          // Filtros en el OrderItem
+          ...(size && { size: parseInt(size, 10) }),
+          // Filtros en el Modelo relacionado
+          model: {
+            ...(name && {
+              name: {
+                contains: name,
+                mode: "insensitive",
+              },
+            }),
+            ...(color && {
+              color: {
+                contains: color,
+                mode: "insensitive",
+              },
+            }),
+          },
+        },
+      },
+    };
+
+    const result = await prisma.order.findMany({
+      where: whereCondition,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            tipoUsuario: true,
+          },
+        },
+        orderItems: {
+          include: {
+            model: {
+              include: {
+                images: {
+                  where: { isPrimary: true },
+                  take: 1,
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    res.json({
+      data: result,
+      totalFound: result.length,
+      searchCriteria: {
+        name: name || null,
+        color: color || null,
+        size: size ? parseInt(size, 10) : null,
+      },
+    });
+  } catch (error) {
+    console.error("Error en búsqueda de órdenes:", error);
+    next({
+      message: "Error al realizar la búsqueda de órdenes.",
+      status: 500,
+    });
+  }
+};
