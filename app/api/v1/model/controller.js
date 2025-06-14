@@ -706,3 +706,58 @@ export const modelInfo = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getLowStock = async (req, res, next) => {
+  try {
+    const result = await prisma.model.findMany({
+      where: {
+        stocks: {
+          some: {
+            quantity: {
+              lte: 1, // Menor o igual a 1 (incluye 0 y 1)
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      include: {
+        stocks: {
+          where: {
+            quantity: {
+              lte: 1, // Solo incluir stocks con cantidad <= 1
+            },
+          },
+          orderBy: {
+            size: "asc",
+          },
+        },
+        images: true,
+        product: true,
+      },
+    });
+
+    // Agregar información adicional como total de stocks bajos
+    const resultWithLowStockInfo = result.map((item) => {
+      const lowStockCount = item.stocks.length; // Cantidad de tallas con stock bajo
+      const totalLowStockQuantity = item.stocks.reduce(
+        (acc, stock) => acc + stock.quantity,
+        0
+      );
+
+      return {
+        ...item,
+        lowStockCount, // Número de tallas con stock bajo
+        totalLowStockQuantity, // Suma total de cantidades bajas
+      };
+    });
+
+    res.json({
+      data: resultWithLowStockInfo,
+      totalModelsWithLowStock: result.length,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

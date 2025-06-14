@@ -36,6 +36,8 @@ export const create = async (req, res, next) => {
     comments,
     formaOrder,
     directionOrder,
+    cedulaNit,
+    telefonoContacto,
     costoEnvio,
   } = body; // 'total' se usará solo para órdenes normales
 
@@ -175,6 +177,8 @@ export const create = async (req, res, next) => {
           formaOrder: formaOrder || "Sin Especificar",
           directionOrder: directionOrder || "Sin Especificar",
           costoEnvio: costoEnvio || 0, // Asignar costoEnvio si se proporciona
+          cedulaNit: cedulaNit || "Sin Especificar",
+          telefonoContacto: telefonoContacto || "Sin Especificar",
 
           userId,
           typeOrder: orderType,
