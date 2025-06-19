@@ -18,6 +18,7 @@ router.route("/ordersByUser/:userId").get(auth, controller.getOrderByUser);
 router.route("/pagos").post(controller.crearLinkDePago);
 router.route("/webhookBold").post(controller.webhook);
 router.route("/countOrderByDate").post(controller.countOrderByDate);
+router.route("/createOrderWhitoutUser").post(controller.createOrderWhitoutUser);
 router
   .route("/sumarTotalOrdenesByDate")
   .post(controller.sumarTotalOrdenesByDate);

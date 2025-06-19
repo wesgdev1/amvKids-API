@@ -1,5 +1,7 @@
 import { prisma } from "../../../database.js";
 import { uploadPayments } from "../../../uploadPhotos/uploads.js";
+import { encryptPassword } from "../users/model.js";
+import { transporter, welcomeMessage } from "../mailer.js";
 // import { mensajeCliente, transporter } from "../mailer.js"; // Comentado si no se usa envío de correo
 
 /**
@@ -1638,5 +1640,299 @@ export const search = async (req, res, next) => {
       message: "Error al realizar la búsqueda de órdenes.",
       status: 500,
     });
+  }
+};
+
+export const createOrderWhitoutUser = async (req, res, next) => {
+  const { body = {} } = req;
+  const {
+    // Datos del usuario
+    name,
+    email,
+    celular,
+    // Datos de la orden
+    items = [],
+    total,
+    state,
+    comments,
+    formaOrder,
+    directionOrder,
+    cedulaNit,
+    telefonoContacto,
+    costoEnvio,
+  } = body;
+
+  // Detectar si es una orden de curva basado en la estructura del primer item
+  const isCurveOrder = items.length > 0 && items[0].detalleCurva !== undefined;
+  const orderType = isCurveOrder ? "Curva" : "Normal";
+
+  let calculatedTotal = 0;
+  const allRequiredStockChecks = []; // { modelId, size, requiredQuantity, modelName }
+  const allOrderItemsDataForCreate = []; // Datos para createMany después de obtener orderId
+
+  try {
+    // Validar datos del usuario
+    if (!name || !email) {
+      throw new Error("El nombre y email del usuario son requeridos.");
+    }
+
+    // Generar contraseña aleatoria para el usuario
+    const passwordRandom = Math.random().toString(36).slice(-8);
+    const hashedPassword = await encryptPassword(passwordRandom);
+
+    // --- Pre-validación y preparación de la orden (igual que en create) ---
+    if (isCurveOrder) {
+      console.log("Orden de Curva detectada.");
+      // Lógica para órdenes de Curva
+      for (const curveItem of items) {
+        if (
+          !curveItem.id ||
+          !curveItem.detalleCurva ||
+          curveItem.precioCurva === undefined ||
+          curveItem.quantity === undefined
+        ) {
+          throw new Error(
+            "Cada item de curva debe tener id (modelId), detalleCurva, precioCurva y quantity."
+          );
+        }
+        calculatedTotal += curveItem.precioCurva * curveItem.quantity;
+        const pairs = parseDetalleCurva(curveItem.detalleCurva);
+
+        for (const pair of pairs) {
+          const finalQuantity = pair.qty * curveItem.quantity;
+          if (finalQuantity <= 0) continue; // Ignorar si la cantidad resultante es 0 o negativa
+
+          allRequiredStockChecks.push({
+            modelId: curveItem.id, // Asumiendo que 'id' en el item de curva es modelId
+            size: pair.size,
+            requiredQuantity: finalQuantity,
+            modelName: curveItem.name || curveItem.id, // Usar nombre si está disponible
+          });
+        }
+      }
+    } else {
+      // Lógica para órdenes Normales
+      if (total === undefined) {
+        throw new Error("El campo 'total' es requerido para órdenes normales.");
+      }
+      calculatedTotal = total;
+      for (const item of items) {
+        if (
+          !item.modelId ||
+          item.size === undefined ||
+          item.quantity === undefined
+        ) {
+          throw new Error(
+            "Cada item normal debe tener modelId, size y quantity."
+          );
+        }
+        if (item.quantity <= 0) continue; // Ignorar cantidades no positivas
+        allRequiredStockChecks.push({
+          modelId: item.modelId,
+          size: item.size,
+          requiredQuantity: item.quantity,
+          modelName: null, // Se buscará si es necesario en la validación
+        });
+      }
+    }
+
+    // --- Validación de Stock (ANTES de la transacción) ---
+    await Promise.all(
+      allRequiredStockChecks.map(async (check) => {
+        const stock = await prisma.stock.findFirst({
+          where: {
+            modelId: check.modelId,
+            size: check.size,
+          },
+        });
+
+        if (!stock) {
+          // Intentar obtener el nombre del modelo si no lo tenemos
+          let modelName = check.modelName;
+          if (!modelName) {
+            const model = await prisma.model.findUnique({
+              where: { id: check.modelId },
+              select: { name: true },
+            });
+            modelName = model?.name || check.modelId;
+            check.modelName = modelName;
+          }
+          throw new Error(
+            `No se encontró stock para el modelo ${modelName} talla ${check.size}`
+          );
+        }
+
+        // Asegurar que tenemos el nombre del modelo para mensajes de error posteriores
+        if (!check.modelName) {
+          const model = await prisma.model.findUnique({
+            where: { id: check.modelId },
+            select: { name: true },
+          });
+          check.modelName = model?.name || check.modelId;
+        }
+
+        if (stock.quantity < check.requiredQuantity) {
+          let modelName = check.modelName;
+          if (!modelName) {
+            const model = await prisma.model.findUnique({
+              where: { id: check.modelId },
+              select: { name: true },
+            });
+            modelName = model?.name || check.modelId;
+            check.modelName = modelName;
+          }
+          throw new Error(
+            `No hay suficiente stock (${stock.quantity}) para el modelo ${modelName} talla ${check.size}. Se requieren ${check.requiredQuantity}.`
+          );
+        }
+      })
+    );
+
+    // --- Transacción Principal: Crear Usuario y Orden ---
+    const result = await prisma.$transaction(async (transaction) => {
+      // 1. Crear Usuario
+      const newUser = await transaction.user.create({
+        data: {
+          name,
+          email: email.toLowerCase(),
+          celular: celular || null,
+          password: hashedPassword,
+          tipoUsuario: "Cliente",
+        },
+      });
+
+      // 2. Crear Order
+      const order = await transaction.order.create({
+        data: {
+          total: calculatedTotal,
+          state: state || "Creada",
+          comments: comments,
+          formaOrder: formaOrder || "Sin Especificar",
+          directionOrder: directionOrder || "Sin Especificar",
+          costoEnvio: costoEnvio || 0,
+          cedulaNit: cedulaNit || "Sin Especificar",
+          telefonoContacto: telefonoContacto || "Sin Especificar",
+          userId: newUser.id,
+          typeOrder: orderType,
+        },
+        select: {
+          id: true, // Solo necesitamos el ID para los items
+        },
+      });
+
+      // 3. Preparar datos para OrderItem
+      if (isCurveOrder) {
+        for (const curveItem of items) {
+          const pairs = parseDetalleCurva(curveItem.detalleCurva);
+          for (const pair of pairs) {
+            const finalQuantity = pair.qty * curveItem.quantity;
+            if (finalQuantity > 0) {
+              allOrderItemsDataForCreate.push({
+                modelId: curveItem.id,
+                orderId: order.id,
+                size: pair.size,
+                quantity: finalQuantity,
+              });
+            }
+          }
+        }
+      } else {
+        // Lógica para orden normal
+        for (const item of items) {
+          if (item.quantity > 0) {
+            allOrderItemsDataForCreate.push({
+              modelId: item.modelId,
+              orderId: order.id,
+              size: item.size,
+              quantity: item.quantity,
+              price: item.price,
+              normalPrice: item.normalPrice,
+              alliancePrice: item.alliancePrice,
+              basePrice: item.basePrice,
+              isPromoted: item.isPromoted,
+              pricePromoted: item.pricePromoted,
+            });
+          }
+        }
+      }
+
+      // 4. Crear OrderItems
+      if (allOrderItemsDataForCreate.length > 0) {
+        await transaction.orderItem.createMany({
+          data: allOrderItemsDataForCreate,
+        });
+      } else {
+        console.warn(`Orden ${order.id} creada sin items.`);
+      }
+
+      // 5. Decrementar Stock
+      await Promise.all(
+        allRequiredStockChecks.map(async (check) => {
+          const updateResult = await transaction.stock.updateMany({
+            where: {
+              modelId: check.modelId,
+              size: check.size,
+              quantity: { gte: check.requiredQuantity },
+            },
+            data: {
+              quantity: {
+                decrement: check.requiredQuantity,
+              },
+            },
+          });
+
+          if (updateResult.count === 0) {
+            const currentStock = await transaction.stock.findFirst({
+              where: { modelId: check.modelId, size: check.size },
+              select: { quantity: true },
+            });
+            throw new Error(
+              `Error al actualizar stock para ${check.modelName} talla ${
+                check.size
+              }. Stock actual: ${
+                currentStock?.quantity ?? "No encontrado"
+              }. Requerido: ${
+                check.requiredQuantity
+              }. Posible problema de concurrencia.`
+            );
+          }
+        })
+      );
+
+      return { orderId: order.id, user: newUser, password: passwordRandom };
+    });
+
+    // --- Post-Transacción ---
+    // Buscar la orden completa para la respuesta
+    const finalOrder = await prisma.order.findUnique({
+      where: { id: result.orderId },
+      include: {
+        user: true,
+        orderItems: {
+          include: {
+            model: true,
+          },
+        },
+      },
+    });
+
+    // Enviar correo de bienvenida con la contraseña
+    try {
+      const mensaje = welcomeMessage(result.user, result.password);
+      await transporter.sendMail(mensaje);
+    } catch (emailError) {
+      console.error("Error enviando correo de bienvenida:", emailError);
+      // No fallar la operación por error de correo, pero loggearlo
+    }
+
+    res.status(201);
+    res.json({
+      data: finalOrder,
+      message:
+        "Usuario y orden creados exitosamente. Se ha enviado un correo con las credenciales.",
+    });
+  } catch (error) {
+    console.error("Error en createOrderWhitoutUser:", error);
+    next(error);
   }
 };
