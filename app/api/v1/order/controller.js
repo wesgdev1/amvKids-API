@@ -320,6 +320,11 @@ export const getAll = async (req, res, next) => {
       orderBy: {
         createdAt: "desc",
       },
+      where: {
+        state: {
+          not: "Pedido Entregado",
+        },
+      },
     });
 
     res.json({
@@ -1567,12 +1572,13 @@ export const calcularUtilidadGraficos = async (req, res, next) => {
 
 export const search = async (req, res, next) => {
   const { body = {} } = req;
-  const { name, color, size } = body;
-  console.log(name, color, size);
+  const { name, color, size, codigoOrder } = body;
+  console.log(name, color, size, codigoOrder);
 
   try {
     // Construir el filtro where dinámicamente
     const whereCondition = {
+      ...(codigoOrder && { codigoOrder: Number(codigoOrder) }),
       orderItems: {
         some: {
           // Filtros en el OrderItem

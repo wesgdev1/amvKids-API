@@ -115,6 +115,8 @@ model Order {
   costoEnvio       Int? //Costo de envio
   cedulaNit        String?
   telefonoContacto String?
+  coupon           Coupon?     @relation(fields: [couponId], references: [id])
+  couponId         String?     @db.Uuid
 }
 
 model OrderItem {
@@ -133,4 +135,27 @@ model OrderItem {
   alliancePrice Int? //Precio para tiendas aliadas
   basePrice     Int? //Precio base de la prenda
   pricePromoted Int? //Precio de la prenda en promocion  
+}
+
+// tabla para relacionar influencers con cupones y ordenes
+model Influencer {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String
+  email     String?   @unique
+  celular   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+
+  coupons Coupon[] @relation("InfluencerCoupons")
+}
+
+model Coupon {
+  id           String      @id @default(uuid()) @db.Uuid
+  code         String      @unique
+  discount     Int
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime?   @updatedAt
+  influencer   Influencer? @relation("InfluencerCoupons", fields: [influencerId], references: [id])
+  influencerId String?     @db.Uuid
+  orders       Order[]
 }
