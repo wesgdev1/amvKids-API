@@ -92,6 +92,18 @@ export const getAll = async (req, res, next) => {
   }
 };
 
+export const getAll2 = async (req, res, next) => {
+  try {
+    const users = await getAllUsers();
+    res.status(200).json({
+      data: users,
+      message: "Users retrieved successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const changePassword = async (req, res, next) => {
   const { body = {}, decoded = {} } = req;
   const { id } = decoded;
