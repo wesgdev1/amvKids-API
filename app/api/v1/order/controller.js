@@ -34,6 +34,8 @@ export const create = async (req, res, next) => {
   const {
     items = [],
     total,
+    couponId,
+    discountCoupon,
     state,
     comments,
     formaOrder,
@@ -173,6 +175,8 @@ export const create = async (req, res, next) => {
       // 1. Crear Order
       const order = await transaction.order.create({
         data: {
+          couponId: couponId || null,
+          discountCoupon: discountCoupon || null,
           total: calculatedTotal,
           state: state || "Creada",
           comments: comments,
@@ -316,6 +320,7 @@ export const getAll = async (req, res, next) => {
     const result = await prisma.order.findMany({
       include: {
         user: true,
+        coupon: true,
       },
       orderBy: {
         createdAt: "desc",
@@ -348,6 +353,7 @@ export const getAllPreparer = async (req, res, next) => {
       },
       include: {
         user: true,
+        coupon: true,
       },
       orderBy: {
         createdAt: "desc",
@@ -370,6 +376,9 @@ export const getMyOrders = async (req, res, next) => {
     const result = await prisma.order.findMany({
       where: {
         userId,
+      },
+      include: {
+        coupon: true,
       },
 
       orderBy: {
@@ -425,6 +434,7 @@ export const id = async (req, res, next) => {
           },
         },
         user: true,
+        coupon: true,
       },
     });
 
@@ -1182,6 +1192,54 @@ export const modeloMasVendidoPorFecha = async (req, res, next) => {
   }
 };
 
+export const countPaymentsBold = async (req, res, next) => {
+  const { body = {} } = req;
+  const { startDate: startDateString, endDate: endDateString } = body;
+
+  try {
+    if (!startDateString || !endDateString) {
+      return next({
+        message: "Los parámetros 'startDate' y 'endDate' son requeridos.",
+        status: 400,
+      });
+    }
+
+    const startDate = new Date(startDateString);
+    const endDate = new Date(endDateString);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return next({
+        message: "Formato de fecha inválido para startDate o endDate.",
+        status: 400,
+      });
+    }
+
+    console.log(
+      `Buscando pagos en bold: StartDate: ${startDate.toISOString()}, EndDate: ${endDate.toISOString()}`
+    );
+
+    const result = await prisma.order.count({
+      where: {
+        pagoBold: true,
+        createdAt: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+    });
+
+    res.json({
+      data: result,
+    });
+  } catch (error) {
+    console.error("Error en countPaymentsBold:", error);
+    next({
+      message: "Error al contar los pagos en bold por fecha.",
+      status: 500,
+    });
+  }
+};
+
 export const aplicarDescuento = async (req, res, next) => {
   const { body = {} } = req;
   const { orderId, porcentajeDescuento } = body; // 'porcentajeDescuento' AHORA es el monto directo a descontar
@@ -1659,6 +1717,8 @@ export const createOrderWhitoutUser = async (req, res, next) => {
     // Datos de la orden
     items = [],
     total,
+    couponId,
+    discountCoupon,
     state,
     comments,
     formaOrder,
@@ -1810,6 +1870,8 @@ export const createOrderWhitoutUser = async (req, res, next) => {
       // 2. Crear Order
       const order = await transaction.order.create({
         data: {
+          couponId: couponId || null,
+          discountCoupon: discountCoupon || null,
           total: calculatedTotal,
           state: state || "Creada",
           comments: comments,
@@ -1940,5 +2002,47 @@ export const createOrderWhitoutUser = async (req, res, next) => {
   } catch (error) {
     console.error("Error en createOrderWhitoutUser:", error);
     next(error);
+  }
+};
+
+// CONTROLADORES PARA CUPON
+
+export const validarCupon = async (req, res, next) => {
+  const { body = {} } = req;
+  const { codigoCupon } = body;
+
+  try {
+    if (!codigoCupon) {
+      return next({
+        message: "El parámetro 'codigoCupon' es requerido.",
+        status: 400,
+      });
+    }
+    const cupon = await prisma.coupon.findFirst({
+      where: {
+        code: {
+          equals: codigoCupon,
+          mode: "insensitive",
+        },
+        state: true,
+      },
+    });
+
+    if (!cupon) {
+      return next({
+        message: "Cupón no encontrado.",
+        status: 404,
+      });
+    }
+
+    res.json({
+      data: cupon,
+    });
+  } catch (error) {
+    console.error("Error en validarCupon:", error);
+    next({
+      message: "Error al validar el cupón.",
+      status: 500,
+    });
   }
 };

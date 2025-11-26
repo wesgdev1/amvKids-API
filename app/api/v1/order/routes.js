@@ -24,6 +24,8 @@ router
   .post(controller.sumarTotalOrdenesByDate);
 
 router.route("/graficos").post(controller.calcularUtilidadGraficos);
+router.route("/countPaymentsBold").post(controller.countPaymentsBold);
+router.route("/validarCupon").post(controller.validarCupon);
 
 router
   .route("/sumarParesVendidosPorFecha")

@@ -117,6 +117,7 @@ model Order {
   telefonoContacto String?
   coupon           Coupon?     @relation(fields: [couponId], references: [id])
   couponId         String?     @db.Uuid
+  discountCoupon   Int?
 }
 
 model OrderItem {
@@ -158,4 +159,5 @@ model Coupon {
   influencer   Influencer? @relation("InfluencerCoupons", fields: [influencerId], references: [id])
   influencerId String?     @db.Uuid
   orders       Order[]
+  state        Boolean?    @default(true)
 }
