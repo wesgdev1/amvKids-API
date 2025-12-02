@@ -2046,3 +2046,61 @@ export const validarCupon = async (req, res, next) => {
     });
   }
 };
+
+export const ordersWithCoupon = async (req, res, next) => {
+  const { body = {} } = req;
+  // Esperar 'startDate' y 'endDate' como strings ISO 8601 o similar desde el frontend
+  const { startDate: startDateString, endDate: endDateString } = body;
+
+  try {
+    // Validar que se proporcionen startDate y endDate
+    if (!startDateString || !endDateString) {
+      return next({
+        message: "Los parámetros 'startDate' y 'endDate' son requeridos.",
+        status: 400,
+      });
+    }
+
+    // Convertir los strings de fecha a objetos Date
+    const startDate = new Date(startDateString);
+    const endDate = new Date(endDateString);
+
+    // Validar si las fechas son válidas
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return next({
+        message: "Formato de fecha inválido para startDate o endDate.",
+        status: 400,
+      });
+    }
+
+    // Log para depuración (opcional)
+    console.log(
+      `Ordenes con cupón: StartDate: ${startDate.toISOString()}, EndDate: ${endDate.toISOString()}`
+    );
+
+    // contar cuantas ordenes con cupon hay en el rango de fechas
+    const result = await prisma.order.count({
+      where: {
+        createdAt: {
+          gte: startDate,
+          lte: endDate,
+        },
+        state: {
+          in: ["Pedido Entregado", "Pago Confirmado"],
+        },
+        couponId: {
+          not: null,
+        },
+      },
+    });
+    res.json({
+      data: result,
+    });
+  } catch (error) {
+    console.error("Error en ordersWithCoupon:", error);
+    next({
+      message: "Error al obtener las órdenes con cupón.",
+      status: 500,
+    });
+  }
+};
