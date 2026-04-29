@@ -8,7 +8,7 @@ import { auth } from "../auth.js";
 
 router.route("/").get(controller.getAll).post(auth, controller.create);
 router.route("/countProducts").get(controller.countProducts);
-
+router.route("/archived/:id").get(controller.getArchived);
 router.param("id", controller.id);
 
 router

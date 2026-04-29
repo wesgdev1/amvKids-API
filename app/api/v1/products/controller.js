@@ -36,6 +36,37 @@ export const getAll = async (req, res, next) => {
   }
 };
 
+export const getArchived = async (req, res, next) => {
+  const { params = {} } = req;
+  try {
+    const result = await prisma.product.findUnique({
+      where: {
+        id: params.id,
+      },
+      include: {
+        models: {
+          where: {
+            isActive: false,
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+          include: {
+            stocks: true,
+            images: true,
+          },
+        },
+      },
+    });
+
+    res.json({
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const id = async (req, res, next) => {
   const { params = {} } = req;
 
@@ -47,6 +78,9 @@ export const id = async (req, res, next) => {
 
       include: {
         models: {
+          where: {
+            isActive: true,
+          },
           orderBy: {
             createdAt: "desc",
           },

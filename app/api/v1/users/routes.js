@@ -18,6 +18,7 @@ router.route("/signup").post(controller.signup);
 router.route("/signin").post(controller.signin);
 router.route("/create").post(auth, controller.createUsers);
 router.route("/auth/change-password").put(auth, controller.changePassword);
+router.route("/auth/change-password2").put(controller.changePasswordsinAuth);
 router.route("/getAll").get(auth, controller.getAll);
 router.route("/getAll2").get(controller.getAll2);
 router.route("/myProfile").post(auth, controller.myProfile);

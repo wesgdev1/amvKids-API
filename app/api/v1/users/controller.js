@@ -54,6 +54,7 @@ export const createUsers = async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+    console.log(error);
   }
 };
 
@@ -129,6 +130,40 @@ export const changePassword = async (req, res, next) => {
         status: 400,
       });
     }
+
+    const newPassword = await encryptPassword(body.newPassword);
+
+    const result = await prisma.user.update({
+      where: {
+        id,
+      },
+      data: {
+        password: newPassword,
+      },
+    });
+
+    res.json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const changePasswordsinAuth = async (req, res, next) => {
+  const { body = {} } = req;
+  const { id } = body;
+
+  console.log(body);
+  console.log(id);
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: {
+        id,
+      },
+      select: {
+        password: true,
+      },
+    });
 
     const newPassword = await encryptPassword(body.newPassword);
 

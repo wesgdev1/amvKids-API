@@ -119,6 +119,9 @@ export const getAll = async (req, res, next) => {
       orderBy: {
         createdAt: "desc",
       },
+      where: {
+        isActive: true,
+      },
       include: {
         stocks: true,
         images: true,
@@ -171,6 +174,7 @@ export const getRecommended = async (req, res, next) => {
     const result = await prisma.model.findMany({
       where: {
         isRecommended: true,
+        isActive: true,
       },
       orderBy: {
         createdAt: "desc",
@@ -335,6 +339,7 @@ export const search = async (req, res, next) => {
   try {
     const result = await prisma.model.findMany({
       where: {
+        isActive: true,
         AND: terms.map((term) => ({
           OR: [
             { name: { contains: term, mode: "insensitive" } },
@@ -411,7 +416,10 @@ export const searchWithFilter = async (req, res, next) => {
   console.log(promo);
   try {
     const whereClause = {
-      AND: [],
+      AND: [
+        // Agregar inicialmente que solo sea activos
+        { isActive: true },
+      ],
     };
 
     // Agregar condiciones de búsqueda por términos
@@ -557,7 +565,7 @@ export const filter = async (req, res, next) => {
 
   try {
     const whereClause = {
-      AND: [],
+      AND: [{ isActive: true }],
     };
 
     if (promo.length > 0) {
