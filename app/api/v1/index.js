@@ -7,6 +7,8 @@ import { router as stock } from "./stock/routes.js";
 import { router as order } from "./order/routes.js";
 import { router as photo } from "./photo/routes.js";
 import { router as directions } from "./directions/routes.js";
+import { router as coupons } from "./coupons/routes.js";
+import { router as influencers } from "./influencers/routes.js";
 
 // eslint-disable-next-line new-cap
 export const router = Router();
@@ -18,3 +20,5 @@ router.use("/stocks", stock);
 router.use("/orders", order);
 router.use("/photos", photo);
 router.use("/directions", directions);
+router.use("/coupons", coupons);
+router.use("/influencers", influencers);
