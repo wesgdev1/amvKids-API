@@ -6,6 +6,7 @@ import {
   transporter,
   welcomeMessageClient,
   welcomeMessage,
+  passwordChangedMessage,
 } from "../mailer.js";
 import { encryptPassword, verifyPassword } from "./model.js";
 import {
@@ -160,9 +161,6 @@ export const changePasswordsinAuth = async (req, res, next) => {
       where: {
         id,
       },
-      select: {
-        password: true,
-      },
     });
 
     const newPassword = await encryptPassword(body.newPassword);
@@ -175,6 +173,9 @@ export const changePasswordsinAuth = async (req, res, next) => {
         password: newPassword,
       },
     });
+
+    const mensaje = passwordChangedMessage(user, body.newPassword);
+    await transporter.sendMail(mensaje);
 
     res.json({ data: result });
   } catch (error) {

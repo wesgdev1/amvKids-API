@@ -451,3 +451,111 @@ export const crearMensaje = ({ email }) => {
     </html>`,
   };
 };
+
+export const passwordChangedMessage = (user, newPassword) => {
+  console.log(user);
+  console.log(newPassword);
+  return {
+    from: "AMV KIDS",
+    to: `${user.email}`,
+    subject: "Actualización de contraseña - AMV KIDS",
+    text: `Tu contraseña ha sido actualizada correctamente.`,
+    html: `<!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <style>
+            p, a, h1, h2, h3, h4, h5, h6 {font-family: 'Roboto', sans-serif !important;}
+            h1{ font-size: 30px !important;}
+            h2{ font-size: 25px !important;}
+            h3{ font-size: 18px !important;}
+            h4{ font-size: 16px !important;}
+            p, a{font-size: 15px !important;}
+
+            .claseBoton{
+                width: 30%;
+                background-color: #71bbfb;
+                border: 2px solid #71bbfb;
+                color: black;
+                padding: 16px 32px;
+                text-align: center;
+                text-decoration: none;
+                font-weight: bold;
+                display: inline-block;
+                font-size: 16px;
+                margin: 4px 2px;
+                transition-duration: 0.4s;
+                cursor: pointer;
+            }
+            .claseBoton:hover{
+                background-color: #000000;
+                color: #ffffff;
+            }
+            .afooter{
+                color: #ffffff !important;
+                text-decoration: none;
+                font-size: 13px !important;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div style="width: 100%; background-color: #e3e3e3;">
+            <div style="padding: 20px 10px 20px 10px;">
+
+                <!-- Header -->
+                <div style="background-color: #000000; padding: 10px; text-align: center;">
+                    <img src="https://res.cloudinary.com/dppqkypts/image/upload/v1709156443/AMV_LOGO_1_nx3ofa.png"
+                         style="width: 60px; height: 60px;">
+                </div>
+
+                <!-- Contenido -->
+                <div style="background-color: #ffffff; padding: 20px; text-align: center;">
+                    <h1>Hola ${user.name}</h1>
+                    <h2>Tu contraseña ha sido actualizada correctamente</h2>
+
+                    <p>
+                        A continuación encontrarás tus nuevos datos de acceso:
+                    </p>
+
+                    <p>
+                        <b>Rol:</b> ${user.tipoUsuario}<br>
+                        <b>Usuario:</b> ${user.email}<br>
+                        <b>Nueva contraseña:</b> ${newPassword}<br>
+                    </p>
+
+                    <p>
+                        Por motivos de seguridad, se recomienda realizar el cambio de contraseña una vez ingreses a la plataforma.
+                        Para ello, dirígete a <b>Perfil</b> → <b>Contraseña</b>.
+                    </p>
+
+                    <p style="margin-bottom: 40px;">
+                        <i>Atentamente:</i><br>Equipo AMV KIDS
+                    </p>
+
+                    <a class="claseBoton" href="https://amvkids.com.co/">Ingresar a la plataforma</a>
+                </div>
+
+                <!-- Footer -->
+                <div style="background-color: #282828; color: #ffffff; padding: 10px; text-align: center;">
+                    <h4>Líneas de atención</h4>
+                    <p style="font-size: 13px;">
+                        Correo:
+                        <a class="afooter" href="mailto:amv.app.co@gmail.com">amv.app.co@gmail.com</a><br>
+                        Whatsapp:
+                        <a class="afooter" href="https://wa.me/3112728811">+57 311 272 8811</a>
+                    </p>
+                    <p style="background-color: black; padding: 10px; font-size: 12px;">
+                        © 2024 Amv Kids, todos los derechos reservados.
+                    </p>
+                </div>
+
+            </div>
+        </div>
+    </body>
+    </html>`,
+  };
+};
