@@ -27,6 +27,7 @@ router.route("/graficos").post(controller.calcularUtilidadGraficos);
 router.route("/countPaymentsBold").post(controller.countPaymentsBold);
 router.route("/validarCupon").post(controller.validarCupon);
 router.route("/orderswithcoupon").post(controller.ordersWithCoupon);
+router.route("/mensual").get(controller.informeMesual);
 
 router
   .route("/sumarParesVendidosPorFecha")

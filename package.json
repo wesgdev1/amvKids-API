@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "cross-env NODE_ENV=production node index",
-    "dev": "cross-env  NODE_ENV=development node  --watch index",
+    "dev": "cross-env  NODE_ENV=development node   index",
     "test": "cross-env NODE_ENV=test jest ",
     "cronTest": "node app/cronTest.js"
   },

@@ -2104,3 +2104,262 @@ export const ordersWithCoupon = async (req, res, next) => {
     });
   }
 };
+
+export const informeMesual = async (req, res, next) => {
+  try {
+    const { body = {} } = req;
+    const now = new Date();
+    // Accepts optional year/month for re-runs; defaults to current month
+    const year = body.year ? parseInt(body.year) : now.getFullYear();
+    const month = body.month ? parseInt(body.month) - 1 : now.getMonth(); // 0-indexed
+
+    const startDate = new Date(year, month, 1, 0, 0, 0, 0);
+    const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
+
+    const VALID_STATES = ["Pedido Entregado", "Pago Confirmado"];
+
+    // ── DEBUG: borrar después de confirmar datos ──────────────────────────────
+    const debug = await prisma.order.groupBy({
+      by: ["state"],
+      _count: { id: true },
+    });
+    const debugFecha = await prisma.order.findFirst({
+      where: { state: { in: VALID_STATES } },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true, state: true, codigoOrder: true },
+    });
+    console.log("DEBUG estados en BD:", JSON.stringify(debug));
+    console.log("DEBUG última orden válida:", JSON.stringify(debugFecha));
+    console.log("DEBUG rango consultado:", startDate.toISOString(), "→", endDate.toISOString());
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const ordenes = await prisma.order.findMany({
+      where: {
+        state: { in: VALID_STATES },
+        createdAt: { gte: startDate, lte: endDate },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            tipoUsuario: true,
+            codigo: true,
+          },
+        },
+        orderItems: {
+          include: {
+            model: {
+              select: {
+                id: true,
+                name: true,
+                color: true,
+                reference: true,
+                basePrice: true,
+                images: {
+                  where: { isPrimary: true },
+                  take: 1,
+                  select: { url: true },
+                },
+                product: { select: { name: true } },
+              },
+            },
+          },
+        },
+        coupon: {
+          select: {
+            code: true,
+            discount: true,
+            influencer: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    // ── Acumuladores ──────────────────────────────────────────────────────────
+    let totalIngresos = 0;
+    let totalDescuentosOrden = 0;
+    let totalDescuentosCupon = 0;
+    let totalCostoEnvio = 0;
+    let totalParesVendidos = 0;
+    let ordenesPagoBold = 0;
+    let ordenesCurva = 0;
+    let utilidadBruta = 0;
+
+    const compradorMap = {};  // userId  → stats de comprador
+    const modelMap = {};      // modelId → stats de modelo
+    const couponMap = {};     // couponId → stats de cupón
+    const formaOrderMap = {}; // formaOrder → stats
+    const tipoUsuarioMap = {}; // tipoUsuario → stats
+
+    for (const order of ordenes) {
+      const total = order.total || 0;
+      const descOrden = order.discount || 0;
+      const descCupon = order.discountCoupon || 0;
+      const envio = order.costoEnvio || 0;
+
+      totalIngresos += total;
+      totalDescuentosOrden += descOrden;
+      totalDescuentosCupon += descCupon;
+      totalCostoEnvio += envio;
+      if (order.pagoBold) ordenesPagoBold++;
+      if (order.typeOrder === "Curva") ordenesCurva++;
+
+      // formaOrder breakdown
+      const forma = order.formaOrder || "Sin especificar";
+      if (!formaOrderMap[forma]) formaOrderMap[forma] = { count: 0, totalIngresos: 0 };
+      formaOrderMap[forma].count++;
+      formaOrderMap[forma].totalIngresos += total;
+
+      // Cupones
+      if (order.couponId && order.coupon) {
+        if (!couponMap[order.couponId]) {
+          couponMap[order.couponId] = {
+            code: order.coupon.code,
+            influencer: order.coupon.influencer?.name || null,
+            totalUsos: 0,
+            totalDescuento: 0,
+          };
+        }
+        couponMap[order.couponId].totalUsos++;
+        couponMap[order.couponId].totalDescuento += descCupon;
+      }
+
+      // Compradores
+      const userId = order.userId;
+      const tipo = order.user?.tipoUsuario || "Sin tipo";
+
+      if (userId) {
+        if (!compradorMap[userId]) {
+          compradorMap[userId] = {
+            id: userId,
+            codigo: order.user?.codigo || null,
+            name: order.user?.name || "Desconocido",
+            email: order.user?.email || "",
+            tipoUsuario: tipo,
+            totalOrdenes: 0,
+            totalPares: 0,
+            totalGastado: 0,
+          };
+        }
+        compradorMap[userId].totalOrdenes++;
+        compradorMap[userId].totalGastado += total;
+      }
+
+      // Ventas por tipoUsuario
+      if (!tipoUsuarioMap[tipo]) {
+        tipoUsuarioMap[tipo] = { totalOrdenes: 0, totalIngresos: 0, totalPares: 0 };
+      }
+      tipoUsuarioMap[tipo].totalOrdenes++;
+      tipoUsuarioMap[tipo].totalIngresos += total;
+
+      // Items
+      for (const item of order.orderItems) {
+        const qty = item.quantity || 0;
+        totalParesVendidos += qty;
+        if (userId) compradorMap[userId].totalPares += qty;
+        tipoUsuarioMap[tipo].totalPares += qty;
+
+        const modelId = item.modelId;
+        if (modelId) {
+          if (!modelMap[modelId]) {
+            const m = item.model;
+            modelMap[modelId] = {
+              id: modelId,
+              name: m?.name || "Desconocido",
+              color: m?.color || null,
+              reference: m?.reference || null,
+              producto: m?.product?.name || null,
+              imagenPrincipal: m?.images?.[0]?.url || null,
+              basePrice: m?.basePrice || 0,
+              totalVendido: 0,
+              totalIngresos: 0,
+              utilidad: 0,
+            };
+          }
+          modelMap[modelId].totalVendido += qty;
+
+          // Precio de venta real del item (misma lógica que calcularUtilidad)
+          let precioVenta = 0;
+          if (item.isPromoted) {
+            precioVenta = item.pricePromoted || 0;
+          } else if (item.price !== null && item.price !== undefined) {
+            precioVenta = item.price;
+          } else if (item.normalPrice !== null && item.normalPrice !== undefined) {
+            precioVenta = item.normalPrice;
+          } else if (item.alliancePrice !== null && item.alliancePrice !== undefined) {
+            precioVenta = item.alliancePrice;
+          }
+
+          const basePriceItem = item.basePrice ?? item.model?.basePrice ?? 0;
+          const ingresoItem = precioVenta * qty;
+          const utilidadItem = (precioVenta - basePriceItem) * qty;
+
+          modelMap[modelId].totalIngresos += ingresoItem;
+          modelMap[modelId].utilidad += utilidadItem;
+          utilidadBruta += utilidadItem;
+        }
+      }
+    }
+
+    // ── Top 3 modelos más vendidos ────────────────────────────────────────────
+    const top3Modelos = Object.values(modelMap)
+      .sort((a, b) => b.totalVendido - a.totalVendido)
+      .slice(0, 3);
+
+    // ── Top 3 compradores por tipo ────────────────────────────────────────────
+    const compradores = Object.values(compradorMap);
+    const TIPOS_USUARIO = ["Reventa", "Cliente", "Tienda Aliada"];
+    const top3PorTipo = {};
+    for (const tipoKey of TIPOS_USUARIO) {
+      top3PorTipo[tipoKey] = compradores
+        .filter((c) => c.tipoUsuario === tipoKey)
+        .sort((a, b) => b.totalGastado - a.totalGastado)
+        .slice(0, 3);
+    }
+
+    // ── Cupones ordenados por uso ─────────────────────────────────────────────
+    const resumenCupones = Object.values(couponMap).sort(
+      (a, b) => b.totalUsos - a.totalUsos
+    );
+
+    const nombreMes = new Intl.DateTimeFormat("es-CO", {
+      month: "long",
+      year: "numeric",
+    }).format(startDate);
+
+    res.json({
+      data: {
+        periodo: {
+          mes: nombreMes,
+          desde: startDate.toISOString(),
+          hasta: endDate.toISOString(),
+        },
+        resumenGeneral: {
+          totalOrdenesProcesadas: ordenes.length,
+          totalIngresos,
+          totalDescuentosAplicados: totalDescuentosOrden,
+          totalDescuentosCupones: totalDescuentosCupon,
+          totalCostoEnvios: totalCostoEnvio,
+          totalParesVendidos,
+          ingresoNeto: totalIngresos - totalDescuentosOrden - totalDescuentosCupon,
+          utilidadBruta,
+          ordenesPagoBold,
+          ordenesOtraForma: ordenes.length - ordenesPagoBold,
+          ordenesNormales: ordenes.length - ordenesCurva,
+          ordenesCurva,
+        },
+        top3ModelosMasVendidos: top3Modelos,
+        top3CompradoresPorTipo: top3PorTipo,
+        ventasPorTipoUsuario: tipoUsuarioMap,
+        ventasPorFormaOrder: formaOrderMap,
+        resumenCupones,
+      },
+    });
+  } catch (error) {
+    console.error("Error en informeMesual:", error);
+    next({ message: "Error al generar el informe mensual de ventas.", status: 500 });
+  }
+};
