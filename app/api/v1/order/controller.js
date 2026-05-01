@@ -2106,32 +2106,23 @@ export const ordersWithCoupon = async (req, res, next) => {
 };
 
 export const informeMesual = async (req, res, next) => {
+  const esc = (s) =>
+    String(s ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  const fmt = (n) =>
+    "$" + Math.round(n || 0).toLocaleString("es-CO");
+
   try {
     const { body = {} } = req;
     const now = new Date();
-    // Accepts optional year/month for re-runs; defaults to current month
     const year = body.year ? parseInt(body.year) : now.getFullYear();
-    const month = body.month ? parseInt(body.month) - 1 : now.getMonth(); // 0-indexed
+    const month = body.month ? parseInt(body.month) - 1 : now.getMonth();
 
     const startDate = new Date(year, month, 1, 0, 0, 0, 0);
     const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
-
     const VALID_STATES = ["Pedido Entregado", "Pago Confirmado"];
-
-    // ── DEBUG: borrar después de confirmar datos ──────────────────────────────
-    const debug = await prisma.order.groupBy({
-      by: ["state"],
-      _count: { id: true },
-    });
-    const debugFecha = await prisma.order.findFirst({
-      where: { state: { in: VALID_STATES } },
-      orderBy: { createdAt: "desc" },
-      select: { createdAt: true, state: true, codigoOrder: true },
-    });
-    console.log("DEBUG estados en BD:", JSON.stringify(debug));
-    console.log("DEBUG última orden válida:", JSON.stringify(debugFecha));
-    console.log("DEBUG rango consultado:", startDate.toISOString(), "→", endDate.toISOString());
-    // ─────────────────────────────────────────────────────────────────────────
 
     const ordenes = await prisma.order.findMany({
       where: {
@@ -2140,39 +2131,21 @@ export const informeMesual = async (req, res, next) => {
       },
       include: {
         user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            tipoUsuario: true,
-            codigo: true,
-          },
+          select: { id: true, name: true, email: true, tipoUsuario: true, codigo: true },
         },
         orderItems: {
           include: {
             model: {
               select: {
-                id: true,
-                name: true,
-                color: true,
-                reference: true,
-                basePrice: true,
-                images: {
-                  where: { isPrimary: true },
-                  take: 1,
-                  select: { url: true },
-                },
+                id: true, name: true, color: true, reference: true, basePrice: true,
+                images: { where: { isPrimary: true }, take: 1, select: { url: true } },
                 product: { select: { name: true } },
               },
             },
           },
         },
         coupon: {
-          select: {
-            code: true,
-            discount: true,
-            influencer: { select: { name: true } },
-          },
+          select: { code: true, discount: true, influencer: { select: { name: true } } },
         },
       },
       orderBy: { createdAt: "asc" },
@@ -2182,80 +2155,38 @@ export const informeMesual = async (req, res, next) => {
     let totalIngresos = 0;
     let totalDescuentosOrden = 0;
     let totalDescuentosCupon = 0;
-    let totalCostoEnvio = 0;
     let totalParesVendidos = 0;
-    let ordenesPagoBold = 0;
-    let ordenesCurva = 0;
     let utilidadBruta = 0;
-
-    const compradorMap = {};  // userId  → stats de comprador
-    const modelMap = {};      // modelId → stats de modelo
-    const couponMap = {};     // couponId → stats de cupón
-    const formaOrderMap = {}; // formaOrder → stats
-    const tipoUsuarioMap = {}; // tipoUsuario → stats
+    const compradorMap = {};
+    const modelMap = {};
+    const tipoUsuarioMap = {};
 
     for (const order of ordenes) {
       const total = order.total || 0;
-      const descOrden = order.discount || 0;
-      const descCupon = order.discountCoupon || 0;
-      const envio = order.costoEnvio || 0;
-
       totalIngresos += total;
-      totalDescuentosOrden += descOrden;
-      totalDescuentosCupon += descCupon;
-      totalCostoEnvio += envio;
-      if (order.pagoBold) ordenesPagoBold++;
-      if (order.typeOrder === "Curva") ordenesCurva++;
+      totalDescuentosOrden += order.discount || 0;
+      totalDescuentosCupon += order.discountCoupon || 0;
 
-      // formaOrder breakdown
-      const forma = order.formaOrder || "Sin especificar";
-      if (!formaOrderMap[forma]) formaOrderMap[forma] = { count: 0, totalIngresos: 0 };
-      formaOrderMap[forma].count++;
-      formaOrderMap[forma].totalIngresos += total;
-
-      // Cupones
-      if (order.couponId && order.coupon) {
-        if (!couponMap[order.couponId]) {
-          couponMap[order.couponId] = {
-            code: order.coupon.code,
-            influencer: order.coupon.influencer?.name || null,
-            totalUsos: 0,
-            totalDescuento: 0,
-          };
-        }
-        couponMap[order.couponId].totalUsos++;
-        couponMap[order.couponId].totalDescuento += descCupon;
-      }
-
-      // Compradores
       const userId = order.userId;
       const tipo = order.user?.tipoUsuario || "Sin tipo";
 
       if (userId) {
         if (!compradorMap[userId]) {
           compradorMap[userId] = {
-            id: userId,
-            codigo: order.user?.codigo || null,
+            id: userId, codigo: order.user?.codigo || null,
             name: order.user?.name || "Desconocido",
-            email: order.user?.email || "",
-            tipoUsuario: tipo,
-            totalOrdenes: 0,
-            totalPares: 0,
-            totalGastado: 0,
+            tipoUsuario: tipo, totalOrdenes: 0, totalPares: 0, totalGastado: 0,
           };
         }
         compradorMap[userId].totalOrdenes++;
         compradorMap[userId].totalGastado += total;
       }
 
-      // Ventas por tipoUsuario
-      if (!tipoUsuarioMap[tipo]) {
+      if (!tipoUsuarioMap[tipo])
         tipoUsuarioMap[tipo] = { totalOrdenes: 0, totalIngresos: 0, totalPares: 0 };
-      }
       tipoUsuarioMap[tipo].totalOrdenes++;
       tipoUsuarioMap[tipo].totalIngresos += total;
 
-      // Items
       for (const item of order.orderItems) {
         const qty = item.quantity || 0;
         totalParesVendidos += qty;
@@ -2267,97 +2198,353 @@ export const informeMesual = async (req, res, next) => {
           if (!modelMap[modelId]) {
             const m = item.model;
             modelMap[modelId] = {
-              id: modelId,
-              name: m?.name || "Desconocido",
-              color: m?.color || null,
-              reference: m?.reference || null,
-              producto: m?.product?.name || null,
-              imagenPrincipal: m?.images?.[0]?.url || null,
-              basePrice: m?.basePrice || 0,
-              totalVendido: 0,
-              totalIngresos: 0,
-              utilidad: 0,
+              id: modelId, name: m?.name || "Desconocido", color: m?.color || null,
+              producto: m?.product?.name || null, basePrice: m?.basePrice || 0,
+              totalVendido: 0, totalIngresos: 0, utilidad: 0,
             };
           }
           modelMap[modelId].totalVendido += qty;
 
-          // Precio de venta real del item (misma lógica que calcularUtilidad)
           let precioVenta = 0;
-          if (item.isPromoted) {
-            precioVenta = item.pricePromoted || 0;
-          } else if (item.price !== null && item.price !== undefined) {
-            precioVenta = item.price;
-          } else if (item.normalPrice !== null && item.normalPrice !== undefined) {
-            precioVenta = item.normalPrice;
-          } else if (item.alliancePrice !== null && item.alliancePrice !== undefined) {
-            precioVenta = item.alliancePrice;
-          }
+          if (item.isPromoted) precioVenta = item.pricePromoted || 0;
+          else if (item.price != null) precioVenta = item.price;
+          else if (item.normalPrice != null) precioVenta = item.normalPrice;
+          else if (item.alliancePrice != null) precioVenta = item.alliancePrice;
 
           const basePriceItem = item.basePrice ?? item.model?.basePrice ?? 0;
-          const ingresoItem = precioVenta * qty;
-          const utilidadItem = (precioVenta - basePriceItem) * qty;
-
-          modelMap[modelId].totalIngresos += ingresoItem;
-          modelMap[modelId].utilidad += utilidadItem;
-          utilidadBruta += utilidadItem;
+          modelMap[modelId].totalIngresos += precioVenta * qty;
+          modelMap[modelId].utilidad += (precioVenta - basePriceItem) * qty;
+          utilidadBruta += (precioVenta - basePriceItem) * qty;
         }
       }
     }
 
-    // ── Top 3 modelos más vendidos ────────────────────────────────────────────
+    // ── Métricas derivadas ────────────────────────────────────────────────────
+    const totalOrdenes = ordenes.length;
+    const totalDescuentos = totalDescuentosOrden + totalDescuentosCupon;
+    const ingresoNeto = totalIngresos - totalDescuentos;
+    const ticketPromedio = totalOrdenes > 0 ? totalIngresos / totalOrdenes : 0;
+    const paresPorOrden = totalOrdenes > 0
+      ? (totalParesVendidos / totalOrdenes).toFixed(1)
+      : "0.0";
+    const margenPct = totalIngresos > 0
+      ? (utilidadBruta / totalIngresos * 100).toFixed(1)
+      : "0.0";
+    const descuentosPct = totalIngresos > 0
+      ? (totalDescuentos / totalIngresos * 100).toFixed(1)
+      : "0.0";
+
     const top3Modelos = Object.values(modelMap)
       .sort((a, b) => b.totalVendido - a.totalVendido)
       .slice(0, 3);
 
-    // ── Top 3 compradores por tipo ────────────────────────────────────────────
-    const compradores = Object.values(compradorMap);
     const TIPOS_USUARIO = ["Reventa", "Cliente", "Tienda Aliada"];
+    const compradores = Object.values(compradorMap);
     const top3PorTipo = {};
-    for (const tipoKey of TIPOS_USUARIO) {
-      top3PorTipo[tipoKey] = compradores
-        .filter((c) => c.tipoUsuario === tipoKey)
+    for (const t of TIPOS_USUARIO) {
+      top3PorTipo[t] = compradores
+        .filter((c) => c.tipoUsuario === t)
         .sort((a, b) => b.totalGastado - a.totalGastado)
         .slice(0, 3);
     }
 
-    // ── Cupones ordenados por uso ─────────────────────────────────────────────
-    const resumenCupones = Object.values(couponMap).sort(
-      (a, b) => b.totalUsos - a.totalUsos
+    // ── Labels de periodo ─────────────────────────────────────────────────────
+    const mesNombre = new Intl.DateTimeFormat("es-CO", { month: "long" }).format(startDate);
+    const periodoTitulo = `${mesNombre.toUpperCase()} ${year}`;
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const periodoDesc = `1 de ${mesNombre} — ${lastDay} de ${mesNombre} de ${year}`;
+
+    // ── Colores por tipo ──────────────────────────────────────────────────────
+    const CANAL_COLOR = { Reventa: "info", Cliente: "warm", "Tienda Aliada": "pos" };
+
+    // ── HTML: top 3 modelos ───────────────────────────────────────────────────
+    const topModelosHtml = top3Modelos.length === 0
+      ? `<tr><td colspan="6" class="center" style="color:var(--muted);padding:20px 0">Sin datos para el periodo</td></tr>`
+      : top3Modelos.map((m, i) => `
+      <tr>
+        <td class="center"><span class="rank-badge">${i + 1}</span></td>
+        <td>
+          <div class="bold">${esc(m.name)}</div>
+          <div class="meta">${esc(m.producto || "—")} &middot; color ${esc(m.color || "—")}</div>
+        </td>
+        <td class="center">${m.totalVendido}</td>
+        <td class="right">${fmt(m.totalIngresos)}</td>
+        <td class="pos">${fmt(m.utilidad)}</td>
+        <td class="right">${fmt(m.basePrice)}</td>
+      </tr>`).join("");
+
+    // ── HTML: canales (tipoUsuario) ───────────────────────────────────────────
+    const canalesOrdenados = Object.entries(tipoUsuarioMap).sort(
+      ([, a], [, b]) => b.totalIngresos - a.totalIngresos
     );
+    const canalesHtml = canalesOrdenados.length === 0
+      ? `<p style="color:var(--muted);font-size:9pt;">Sin datos para el periodo</p>`
+      : canalesOrdenados.map(([tipo, data]) => {
+          const pctVal = totalIngresos > 0
+            ? (data.totalIngresos / totalIngresos * 100).toFixed(1)
+            : "0.0";
+          const color = CANAL_COLOR[tipo] || "info";
+          return `
+        <div class="channel-row">
+          <div class="channel-head">
+            <div>
+              <span class="channel-name">${esc(tipo)}</span>
+              <span class="channel-meta">${data.totalOrdenes} &oacute;rdenes &middot; ${data.totalPares} pares</span>
+            </div>
+            <div>
+              <span class="channel-pct">${pctVal}%</span>
+              <span class="channel-stats">${fmt(data.totalIngresos)}</span>
+            </div>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill ${color}" style="width:${pctVal}%;"></div>
+          </div>
+        </div>`;
+        }).join("");
 
-    const nombreMes = new Intl.DateTimeFormat("es-CO", {
-      month: "long",
-      year: "numeric",
-    }).format(startDate);
+    // ── HTML: grupos de compradores ───────────────────────────────────────────
+    const gruposHtml = TIPOS_USUARIO.map((tipo) => {
+      const lista = top3PorTipo[tipo];
+      if (!lista || lista.length === 0) return "";
+      const color = CANAL_COLOR[tipo] || "info";
+      const filasHtml = lista.map((c) => `
+        <tr>
+          <td class="bold">${esc(c.name)}</td>
+          <td class="center">#${esc(c.codigo || "—")}</td>
+          <td class="center">${c.totalOrdenes}</td>
+          <td class="center">${c.totalPares}</td>
+          <td class="right bold">${fmt(c.totalGastado)}</td>
+        </tr>`).join("");
+      return `
+      <div class="buyer-group">
+        <div class="buyer-header ${color}">
+          <div class="buyer-tag ${color}">${esc(tipo)}</div>
+          <div class="buyer-count">${lista.length} compradores destacados</div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:40%;">COMPRADOR</th>
+              <th class="center" style="width:13%;">C&Oacute;DIGO</th>
+              <th class="center" style="width:13%;">&Oacute;RDENES</th>
+              <th class="center" style="width:12%;">PARES</th>
+              <th class="right" style="width:22%;">TOTAL GASTADO</th>
+            </tr>
+          </thead>
+          <tbody>${filasHtml}</tbody>
+        </table>
+      </div>`;
+    }).join("");
 
-    res.json({
-      data: {
-        periodo: {
-          mes: nombreMes,
-          desde: startDate.toISOString(),
-          hasta: endDate.toISOString(),
-        },
-        resumenGeneral: {
-          totalOrdenesProcesadas: ordenes.length,
-          totalIngresos,
-          totalDescuentosAplicados: totalDescuentosOrden,
-          totalDescuentosCupones: totalDescuentosCupon,
-          totalCostoEnvios: totalCostoEnvio,
-          totalParesVendidos,
-          ingresoNeto: totalIngresos - totalDescuentosOrden - totalDescuentosCupon,
-          utilidadBruta,
-          ordenesPagoBold,
-          ordenesOtraForma: ordenes.length - ordenesPagoBold,
-          ordenesNormales: ordenes.length - ordenesCurva,
-          ordenesCurva,
-        },
-        top3ModelosMasVendidos: top3Modelos,
-        top3CompradoresPorTipo: top3PorTipo,
-        ventasPorTipoUsuario: tipoUsuarioMap,
-        ventasPorFormaOrder: formaOrderMap,
-        resumenCupones,
-      },
-    });
+    // ── HTML final ────────────────────────────────────────────────────────────
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Informe de Ventas &mdash; AMV KIDS</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  @page {
+    size: A4;
+    margin: 18mm 18mm 18mm 18mm;
+    @bottom-center {
+      content: "AMV KIDS · Sistema de gestión de ventas  ·  Página " counter(page) " de " counter(pages);
+      font-family: 'Helvetica', Arial, sans-serif;
+      font-size: 8pt;
+      color: #94A3B8;
+    }
+  }
+  body { font-family: 'Helvetica', Arial, sans-serif; color: #0F1729; font-size: 10pt; line-height: 1.4; background: #fff; }
+  :root {
+    --ink: #0F1729; --ink-soft: #475569; --muted: #94A3B8; --line: #E2E8F0; --line-soft: #F1F5F9;
+    --surface: #F8FAFC; --accent: #0F766E; --accent-lt: #CCFBF1; --accent-bg: #F0FDFA;
+    --pos: #16A34A; --pos-lt: #DCFCE7; --warm: #B45309; --warm-lt: #FEF3C7;
+    --info: #1D4ED8; --info-lt: #DBEAFE;
+  }
+  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .brand-block { display: flex; align-items: center; gap: 12px; }
+  .logo { width: 46px; height: 46px; background: var(--ink); position: relative; flex-shrink: 0; }
+  .logo::after { content: "AMV"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 10pt; letter-spacing: 0.5px; }
+  .logo-inner { position: absolute; inset: 25%; background: var(--accent); }
+  .brand-name { font-size: 18pt; font-weight: 700; color: var(--ink); line-height: 1.1; letter-spacing: -0.3px; }
+  .brand-sub { font-size: 8.5pt; color: var(--muted); margin-top: 2px; }
+  .period-block { text-align: right; }
+  .period-kind { font-size: 8pt; font-weight: 700; color: var(--accent); letter-spacing: 0.6px; margin-bottom: 4px; }
+  .period-label { font-size: 7pt; color: var(--muted); letter-spacing: 0.5px; margin-bottom: 1px; }
+  .period-value { font-size: 11pt; font-weight: 700; color: var(--ink); }
+  .divider-double { border-top: 2px solid var(--ink); border-bottom: 0.5px solid var(--accent); height: 4px; margin-bottom: 18px; }
+  .title { font-size: 22pt; font-weight: 700; color: var(--ink); letter-spacing: -0.5px; line-height: 1.1; }
+  .subtitle { font-size: 10pt; color: var(--ink-soft); margin-top: 4px; margin-bottom: 22px; }
+  .section { margin-top: 22px; page-break-inside: avoid; }
+  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+  .section-num { width: 22px; height: 22px; background: var(--accent); color: #fff; font-weight: 700; font-size: 11pt; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .section-title { font-size: 13pt; font-weight: 700; color: var(--ink); }
+  .section-sub { font-size: 8pt; color: var(--muted); margin-left: 34px; margin-bottom: 14px; }
+  .section-rule { border-bottom: 0.5px solid var(--line); margin: 8px 0 14px; }
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
+  .metric { border: 0.5px solid var(--line); border-top: 2px solid var(--ink); padding: 10px 12px; background: #fff; }
+  .metric.accent { border-top-color: var(--accent); }
+  .metric-label { font-size: 7pt; font-weight: 700; color: var(--muted); letter-spacing: 0.6px; margin-bottom: 5px; }
+  .metric-value { font-size: 17pt; font-weight: 700; color: var(--ink); line-height: 1.1; margin-bottom: 4px; }
+  .metric-value.accent { color: var(--accent); }
+  .metric-sub { font-size: 8.5pt; color: var(--ink-soft); }
+  .highlight { display: grid; grid-template-columns: 1fr 1fr 1fr; background: var(--accent-bg); border: 0.5px solid var(--accent-lt); padding: 10px 14px; gap: 0; }
+  .highlight > div { padding: 0 12px; }
+  .highlight > div + div { border-left: 0.5px solid var(--accent-lt); }
+  .hl-label { font-size: 7pt; font-weight: 700; color: var(--muted); letter-spacing: 0.5px; margin-bottom: 3px; }
+  .hl-value { font-size: 9.5pt; color: var(--ink); }
+  .hl-value b { font-weight: 700; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: var(--ink); color: #fff; font-size: 7.5pt; font-weight: 700; letter-spacing: 0.6px; padding: 8px 10px; text-align: left; }
+  th.center { text-align: center; } th.right { text-align: right; }
+  td { padding: 8px 10px; font-size: 9pt; color: var(--ink); border-bottom: 0.4px solid var(--line); }
+  td.center { text-align: center; } td.right { text-align: right; } td.bold { font-weight: 700; }
+  td.pos { color: var(--pos); font-weight: 700; text-align: right; }
+  tbody tr:nth-child(even) td { background: var(--surface); }
+  .meta { font-size: 7.5pt; color: var(--muted); margin-top: 2px; }
+  .rank-badge { display: inline-block; width: 32px; background: var(--accent-bg); color: var(--accent); font-weight: 700; font-size: 11pt; text-align: center; padding: 6px 0; border-radius: 3px; }
+  .channels { margin-top: 4px; }
+  .channel-row { margin-bottom: 14px; }
+  .channel-row:last-child { margin-bottom: 0; }
+  .channel-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .channel-name { font-size: 9.5pt; font-weight: 700; color: var(--ink); }
+  .channel-meta { font-size: 8pt; color: var(--muted); margin-left: 8px; font-weight: 400; }
+  .channel-stats { font-size: 9pt; color: var(--ink); font-weight: 700; }
+  .channel-pct { font-size: 8pt; color: var(--muted); margin-right: 8px; font-weight: 400; }
+  .bar-track { background: var(--line-soft); height: 9px; width: 100%; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 0; }
+  .bar-fill.info { background: var(--info); }
+  .bar-fill.warm { background: var(--warm); }
+  .bar-fill.pos  { background: var(--pos); }
+  .buyer-group { margin-bottom: 14px; page-break-inside: avoid; }
+  .buyer-header { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; border-bottom: 1.5px solid; }
+  .buyer-header.info  { background: var(--info-lt); border-bottom-color: var(--info); }
+  .buyer-header.warm  { background: var(--warm-lt); border-bottom-color: var(--warm); }
+  .buyer-header.pos   { background: var(--pos-lt);  border-bottom-color: var(--pos); }
+  .buyer-tag { font-size: 8.5pt; font-weight: 700; letter-spacing: 0.6px; }
+  .buyer-tag.info { color: var(--info); } .buyer-tag.warm { color: var(--warm); } .buyer-tag.pos { color: var(--pos); }
+  .buyer-count { font-size: 7.5pt; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="brand-block">
+    <div class="logo"><div class="logo-inner"></div></div>
+    <div>
+      <div class="brand-name">AMV KIDS</div>
+      <div class="brand-sub">Sistema de gesti&oacute;n de ventas</div>
+    </div>
+  </div>
+  <div class="period-block">
+    <div class="period-kind">INFORME MENSUAL</div>
+    <div class="period-label">PERIODO</div>
+    <div class="period-value">${periodoTitulo}</div>
+  </div>
+</div>
+<div class="divider-double"></div>
+
+<div class="title">Informe de ventas</div>
+<div class="subtitle">An&aacute;lisis del desempe&ntilde;o comercial &middot; ${periodoDesc}</div>
+
+<!-- 01 RESUMEN EJECUTIVO -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">1</div>
+    <div class="section-title">Resumen ejecutivo</div>
+  </div>
+  <div class="section-sub">Indicadores principales del periodo</div>
+  <div class="section-rule"></div>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">INGRESOS BRUTOS</div>
+      <div class="metric-value">${fmt(totalIngresos)}</div>
+      <div class="metric-sub">${totalOrdenes} &oacute;rdenes procesadas</div>
+    </div>
+    <div class="metric accent">
+      <div class="metric-label">INGRESO NETO</div>
+      <div class="metric-value accent">${fmt(ingresoNeto)}</div>
+      <div class="metric-sub">despu&eacute;s de descuentos</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">UTILIDAD BRUTA</div>
+      <div class="metric-value">${fmt(utilidadBruta)}</div>
+      <div class="metric-sub">Margen bruto: ${margenPct}%</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">PARES VENDIDOS</div>
+      <div class="metric-value">${totalParesVendidos}</div>
+      <div class="metric-sub">${paresPorOrden} pares por orden</div>
+    </div>
+  </div>
+
+  <div class="highlight">
+    <div>
+      <div class="hl-label">TICKET PROMEDIO</div>
+      <div class="hl-value"><b>${fmt(ticketPromedio)}</b></div>
+    </div>
+    <div>
+      <div class="hl-label">DESCUENTOS APLICADOS</div>
+      <div class="hl-value"><b>${fmt(totalDescuentos)}</b></div>
+    </div>
+    <div>
+      <div class="hl-label">PARTICIPACI&Oacute;N DESCUENTOS</div>
+      <div class="hl-value"><b>${descuentosPct}%</b> sobre ingresos brutos</div>
+    </div>
+  </div>
+</div>
+
+<!-- 02 TOP 3 MODELOS -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">2</div>
+    <div class="section-title">Top 3 modelos m&aacute;s vendidos</div>
+  </div>
+  <div class="section-sub">Ranking por unidades comercializadas</div>
+  <div class="section-rule"></div>
+  <table>
+    <thead>
+      <tr>
+        <th class="center" style="width:8%;">#</th>
+        <th style="width:38%;">MODELO</th>
+        <th class="center" style="width:10%;">PARES</th>
+        <th class="right" style="width:16%;">INGRESOS</th>
+        <th class="right" style="width:14%;">UTILIDAD</th>
+        <th class="right" style="width:14%;">P. BASE</th>
+      </tr>
+    </thead>
+    <tbody>${topModelosHtml}</tbody>
+  </table>
+</div>
+
+<!-- 03 VENTAS POR CANAL -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">3</div>
+    <div class="section-title">Ventas por canal</div>
+  </div>
+  <div class="section-sub">Distribuci&oacute;n de ingresos seg&uacute;n tipo de comprador</div>
+  <div class="section-rule"></div>
+  <div class="channels">${canalesHtml}</div>
+</div>
+
+<!-- 04 TOP COMPRADORES -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">4</div>
+    <div class="section-title">Top compradores por tipo</div>
+  </div>
+  <div class="section-sub">Mejores clientes por canal en el periodo</div>
+  <div class="section-rule"></div>
+  ${gruposHtml}
+</div>
+
+</body>
+</html>`;
+
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(html);
   } catch (error) {
     console.error("Error en informeMesual:", error);
     next({ message: "Error al generar el informe mensual de ventas.", status: 500 });
