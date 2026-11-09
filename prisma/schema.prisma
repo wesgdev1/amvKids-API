@@ -25,6 +25,7 @@ model User {
   state        Boolean?    @default(true)
   Order        Order[]
   directions   Direction[]
+  prestamos    Prestamo[]
 }
 
 model Direction {
@@ -49,7 +50,7 @@ model Product {
 }
 
 model Model {
-  id            String      @id @default(uuid()) @db.Uuid
+  id            String         @id @default(uuid()) @db.Uuid
   name          String
   price         Int? //Precio de reventa
   normalPrice   Int? //Precio normal user whatsapp o final
@@ -57,18 +58,19 @@ model Model {
   description   String?
   reference     Int?
   color         String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime?   @updatedAt
-  product       Product?    @relation(fields: [productId], references: [id])
-  productId     String?     @db.Uuid
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime?      @updatedAt
+  product       Product?       @relation(fields: [productId], references: [id])
+  productId     String?        @db.Uuid
   stocks        Stock[]
   OrderItem     OrderItem[]
   images        Image[]
-  isActive      Boolean?    @default(true)
-  isRecommended Boolean?    @default(false)
-  basePrice     Int?        @default(0) //Precio base de la prenda
-  isPromoted    Boolean?    @default(false)
-  pricePromoted Int?        @default(0) //Precio de la prenda en promocion  
+  isActive      Boolean?       @default(true)
+  isRecommended Boolean?       @default(false)
+  basePrice     Int?           @default(0) //Precio base de la prenda
+  isPromoted    Boolean?       @default(false)
+  pricePromoted Int?           @default(0) //Precio de la prenda en promocion  
+  prestamoItems PrestamoItem[]
 }
 
 model Image {
@@ -160,4 +162,37 @@ model Coupon {
   influencerId String?     @db.Uuid
   orders       Order[]
   state        Boolean?    @default(true)
+}
+
+//parte de prestamos
+
+model Prestamo {
+  id             String         @id @default(uuid()) @db.Uuid
+  codigoPrestamo Int?           @default(autoincrement())
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime?      @updatedAt
+  fechaPrestamo  DateTime       @default(now())
+  fechaCierre    DateTime? // Fecha en que se cierra el préstamo
+  state          String?        @default("Activo") // Activo, Cerrado
+  comments       String?
+  user           User?          @relation(fields: [userId], references: [id])
+  userId         String?        @db.Uuid
+  items          PrestamoItem[]
+}
+
+// cada par una una fila ojo
+model PrestamoItem {
+  id              String    @id @default(uuid()) @db.Uuid
+  size            Int
+  modelName       String?
+  color           String?
+  devuelto        Boolean   @default(false)
+  fechaDevolucion DateTime? // Fecha en que se devuelve el par
+  comments        String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime? @updatedAt
+  prestamo        Prestamo? @relation(fields: [prestamoId], references: [id])
+  prestamoId      String?   @db.Uuid
+  model           Model?    @relation(fields: [modelId], references: [id])
+  modelId         String?   @db.Uuid
 }
